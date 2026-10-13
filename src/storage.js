@@ -23,20 +23,15 @@ const config = require('./config');
 const NAMA_TOKO = 'kampuskue-portal';
 const PREFIX = 'up/';
 
-let toko = null;
-
 function backend() {
   return config.STORAGE_BACKEND === 'blobs' ? 'blobs' : 'disk';
 }
 
 function store() {
-  if (toko) return toko;
-  // Require dinamis: hanya dipanggil bila backend = blobs, sehingga instalasi
-  // lokal tanpa dependensi Netlify tetap berjalan normal. Lewat src/blobs.js
-  // agar konteks & tingkat konsistensi ditangani di satu tempat.
+  // Tidak di-cache di sini: src/blobs.js yang menyimpan cache per konteks,
+  // karena objek store membawa token konteks pada saat ia dibuat.
   const { bukaToko } = require('./blobs');
-  toko = bukaToko(NAMA_TOKO);
-  return toko;
+  return bukaToko(NAMA_TOKO);
 }
 
 function namaBaru(originalname) {

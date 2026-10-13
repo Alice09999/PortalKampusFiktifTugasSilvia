@@ -3,29 +3,36 @@
 /**
  * Titik tunggal pemakaian Netlify Blobs (sesi, unggahan, mirror database).
  *
- * Dua hal teknis ditangani khusus di sini, karena keduanya PERNAH membuat sesi
- * gagal total di deployment Netlify:
+ * Tiga hal teknis ditangani khusus di sini, karena ketiganya PERNAH membuat
+ * sesi gagal total di deployment Netlify:
  *
  *  1. Runtime "Lambda compatibility" tidak mengisi konteks Blobs secara
  *     otomatis. Konteks harus dipasang dari event dengan connectLambda(event)
- *     (lihat README @netlify/blobs, bagian "Lambda compatibility mode").
+ *     (README @netlify/blobs, bagian "Lambda compatibility mode").
  *     Tanpa konteks, getStore() melempar MissingBlobsEnvironmentError
  *     (siteID, token) sehingga TIDAK ADA data yang bisa disimpan/dibaca.
  *
- *  2. consistency:'strong' hanya bisa dipakai bila konteks memuat properti
+ *  2. Konteks WAJIB dipasang pada SETIAP permintaan, bukan sekali per
+ *     container. Token yang dibawa event.blobs hanya berlaku singkat — bila
+ *     konteks lama dipakai ulang, tulisan berikutnya gagal dengan
+ *     "Failed to decode token: Token expired" dan sesi dianggap kosong.
+ *     Dokumentasi paket: "call this method immediately before calling
+ *     getStore". Karena itu cache store juga dibuang begitu konteks berubah.
+ *
+ *  3. consistency:'strong' hanya bisa dipakai bila konteks memuat properti
  *     'uncachedEdgeURL'. Bila properti itu tidak ada, SETIAP operasi dengan
- *     'strong' melempar BlobsConsistencyError. Akibatnya penyimpanan sesi
- *     selalu dianggap kosong, token CSRF tidak pernah cocok, dan login selalu
- *     403 "Token keamanan (CSRF) tidak valid" — meski cookie sesi sudah benar.
- *     Karena itu tingkat konsistensi dipilih dari ISI konteks:
+ *     'strong' melempar BlobsConsistencyError — token CSRF tak pernah cocok
+ *     sehingga login selalu 403. Tingkat konsistensi karena itu dipilih dari
+ *     ISI konteks:
  *       ada uncachedEdgeURL -> 'strong'  (baca langsung, tanpa cache edge)
  *       selain itu           -> 'eventual'(nilai bawaan paket, selalu sah)
  *
- * Pemilihan konsistensi tidak pernah melempar: bila konteks tidak terbaca,
- * dipakai 'eventual' yang aman di semua mode akses (edge maupun API).
+ * Semua fungsi di sini tidak pernah melempar ke pemanggil: bila konteks tidak
+ * terbaca dipakai 'eventual', dan kegagalan dicatat ke log sekali per container.
  */
 
-let sudahDicoba = false;
+let sudahLog = false;
+const tokoTersimpan = new Map(); // nama store -> { konteks, toko }
 
 function konteksMentah() {
   try {
@@ -36,38 +43,53 @@ function konteksMentah() {
 }
 
 /**
- * Pasang konteks Blobs dari event bila runtime tidak menyediakannya.
- * Aman dipanggil pada setiap permintaan: hanya bekerja sekali dan tidak
- * menimpa konteks yang sudah ada.
+ * Pasang konteks Blobs dari event. DIPANGGIL PADA SETIAP PERMINTAAN.
+ * Bila runtime sudah menyediakan konteks sendiri (tanpa event.blobs),
+ * konteks platform itu dipakai apa adanya.
  *
  * @param {object} event event fungsi Netlify
  * @returns {boolean} true bila konteks tersedia setelah dipanggil
  */
 function hubungkanDariEvent(event) {
-  if (sudahDicoba) return konteksMentah() !== '';
-  sudahDicoba = true;
+  if (event && typeof event.blobs === 'string') {
+    try {
+      require('@netlify/blobs').connectLambda(event);
+      // Token berubah tiap permintaan -> store lama tidak boleh dipakai lagi.
+      tokoTersimpan.clear();
+      if (!sudahLog) {
+        sudahLog = true;
+        console.log(
+          '[blobs] konteks dipasang dari event (setiap permintaan); konsistensi="' +
+            konsistensi() +
+            '".'
+        );
+      }
+      return true;
+    } catch (e) {
+      if (!sudahLog) {
+        sudahLog = true;
+        console.error('[blobs] connectLambda gagal:', e && e.message ? e.message : e);
+      }
+      return konteksMentah() !== '';
+    }
+  }
+
   if (konteksMentah()) {
-    // Runtime modern: konteks sudah terisi otomatis.
-    console.log('[blobs] konteks tersedia dari runtime; konsistensi="' + konsistensi() + '".');
+    if (!sudahLog) {
+      sudahLog = true;
+      console.log('[blobs] konteks dari runtime platform; konsistensi="' + konsistensi() + '".');
+    }
     return true;
   }
-  if (!event || typeof event.blobs !== 'string') {
+
+  if (!sudahLog) {
+    sudahLog = true;
     console.error(
       '[blobs] konteks tidak tersedia: NETLIFY_BLOBS_CONTEXT kosong dan event.blobs tidak ada. ' +
         'Sesi/unggahan/mirror database TIDAK akan bisa disimpan.'
     );
-    return false;
   }
-  try {
-    require('@netlify/blobs').connectLambda(event);
-    console.log(
-      '[blobs] konteks dipasang lewat connectLambda(event); konsistensi="' + konsistensi() + '".'
-    );
-    return true;
-  } catch (e) {
-    console.error('[blobs] connectLambda gagal:', e && e.message ? e.message : e);
-    return false;
-  }
+  return false;
 }
 
 /** Tingkat konsistensi yang didukung konteks saat ini (tidak pernah melempar). */
@@ -83,10 +105,20 @@ function konsistensi() {
   }
 }
 
-/** Buka store dengan nama tertentu memakai konsistensi yang didukung. */
+/**
+ * Buka store dengan nama tertentum memakai konsistensi yang didukung.
+ * Hasil disimpan per nama DAN dibuang bila konteks berubah, karena objek store
+ * membawa token konteks saat dibuat.
+ */
 function bukaToko(nama) {
+  const enc = konteksMentah();
+  const tersimpan = tokoTersimpan.get(nama);
+  if (tersimpan && tersimpan.konteks === enc) return tersimpan.toko;
+
   const { getStore } = require('@netlify/blobs');
-  return getStore({ name: nama, consistency: konsistensi() });
+  const toko = getStore({ name: nama, consistency: konsistensi() });
+  tokoTersimpan.set(nama, { konteks: enc, toko });
+  return toko;
 }
 
 module.exports = { hubungkanDariEvent, konsistensi, bukaToko };

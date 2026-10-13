@@ -25,7 +25,6 @@ const PREFIX = 'sess/';
 class BlobsSessionStore extends Store {
   constructor() {
     super();
-    this.toko = null;
     this.sudahLog = false;
   }
 
@@ -43,12 +42,12 @@ class BlobsSessionStore extends Store {
   }
 
   _store() {
-    if (this.toko) return this.toko;
-    // Lewat src/blobs.js: konteks Blobs dipasang dari event dan tingkat
-    // konsistensi disesuaikan dengan yang didukung runtime.
+    // Lewat src/blobs.js: konteks dipasang ULANG pada setiap permintaan
+    // (token punya masa berlaku singkat), dan cache store dibuang bila
+    // konteks berubah — sehingga objek store tidak pernah membawa token
+    // kedaluwarsa ("Failed to decode token: Token expired").
     const { bukaToko } = require('./blobs');
-    this.toko = bukaToko(NAMA_TOKO);
-    return this.toko;
+    return bukaToko(NAMA_TOKO);
   }
 
   get(sid, cb) {

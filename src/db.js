@@ -178,14 +178,11 @@ const mirrorAktif = config.DB_MIRROR === true;
 const NAMA_TOKO = 'kampuskue-portal';
 const KUNCI_DB = 'db/kampuskue.db';
 let kotor = false;
-let tokoMirror = null;
 
 function toko() {
-  if (tokoMirror) return tokoMirror;
-  // Lewat src/blobs.js (konteks dari event + konsistensi yang didukung).
+  // Tidak di-cache di sini: src/blobs.js yang menyimpan cache per konteks.
   const { bukaToko } = require('./blobs');
-  tokoMirror = bukaToko(NAMA_TOKO);
-  return tokoMirror;
+  return bukaToko(NAMA_TOKO);
 }
 
 /** Tandai bahwa database berubah sejak mirror terakhir. */
