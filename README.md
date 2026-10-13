@@ -96,6 +96,7 @@ D:\WEB PORTAL KAMPUS FIKTIF\
 │   ├── smoke-test.js          # Uji otomatis menyeluruh (80 pemeriksaan)
 │   └── verify-netlify.js      # Uji jalur adapter Netlify & penegakan rahasia (25 pemeriksaan)
 ├── src/
+│   ├── blobs.js                # Satu-satunya pintu akses Blobs (konteks per permintaan)
 │   ├── config.js              # Pembacaan .env & konfigurasi
 │   ├── db.js                  # Koneksi SQLite + skema tabel + helper query + mirror opsional
 │   ├── queries.js             # Helper bersama (keanggotaan kelas, kepemilikan kelas)
@@ -542,6 +543,19 @@ Semua env var non-rahasia (`NODE_ENV`, `LAB_ENABLED`, `DB_PATH`, `LAB_DB_PATH`,
   Blobs setiap kali ada tulisan. Ini **bukan database bersama** — memakai semantik
   *last-write-wins*, jadi bila dua instance menulis bersamaan, data salah satu
   bisa tertimpa.
+- **Konteks Blobs dipasang ulang pada setiap permintaan** (`src/blobs.js`). Dua
+  hal di sini pernah membuat sesi gagal total di runtime "Lambda compatibility"
+  Netlify, dan keduanya ditangani hanya di modul itu:
+  1. Konteks tidak tersedia otomatis → dipasang dari event lewat
+     `connectLambda(event)` di awal setiap permintaan fungsi.
+  2. Token di event hanya **berlaku singkat** → konteks tidak boleh di-cache
+     per container. Bila dipakai ulang, tulisan berikutnya gagal dengan
+     *"Failed to decode token: Token expired"*, sesi dianggap kosong, dan
+     setiap POST berakhir 403 (token CSRF tak pernah cocok). Karena objek store
+     membawa token saat dibuat, cache store juga dibuang tiap konteks berubah.
+  3. `consistency` dipilih dari **isi** konteks: `strong` hanya bila memuat
+     `uncachedEdgeURL`, selain itu `eventual` — karena `'strong'` tanpa properti
+     itu melempar `BlobsConsistencyError` di setiap operasi.
 
 **Batas yang harus diketahui**
 
