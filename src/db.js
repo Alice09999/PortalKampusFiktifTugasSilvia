@@ -2,7 +2,28 @@
 
 const fs = require('fs');
 const path = require('path');
-const { DatabaseSync } = require('node:sqlite');
+
+/**
+ * Modul SQLite bawaan Node HANYA bisa dimuat sebagai "node:sqlite".
+ * Namun pengemas fungsi Netlify (esbuild/ZISI) menghapus awalan "node:" pada
+ * require berbentuk literal, sehingga menjadi require('sqlite') dan gagal di
+ * runtime dengan "Cannot find module 'sqlite'". Karena itu nama modulnya
+ * disusun saat runtime — tidak bisa diubah oleh pengemas.
+ */
+function muatSqlite() {
+  const nama = process.env.SQLITE_MODULE_NAME || 'node:sqlite';
+  try {
+    return require(nama);
+  } catch (e) {
+    console.error(
+      '[db] Gagal memuat modul SQLite "' + nama + '" pada Node ' + process.version + '. ' +
+        'node:sqlite membutuhkan Node >= 22.5.'
+    );
+    throw e;
+  }
+}
+
+const { DatabaseSync } = muatSqlite();
 const config = require('./config');
 
 /** Buka (dan buat jika belum ada) file database. */

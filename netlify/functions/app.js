@@ -55,6 +55,8 @@ process.env.DB_MIRROR = process.env.DB_MIRROR || (pakaiBlobs ? 'true' : 'false')
 // (default lokal) + overhead multipart bisa melewatinya -> batasi 4 MB di Netlify.
 process.env.MAX_UPLOAD_BYTES = process.env.MAX_UPLOAD_BYTES || '4194304';
 
+console.log('[netlify] Node ' + process.version + ' | akar bundle: ' + AKAR);
+
 if (!fs.existsSync(path.join(AKAR, 'views', 'login.ejs'))) {
   console.error('[netlify] views/ tidak ditemukan di bundle. AKAR=' + AKAR);
   console.error(
