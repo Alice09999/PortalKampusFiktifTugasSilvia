@@ -182,8 +182,9 @@ let tokoMirror = null;
 
 function toko() {
   if (tokoMirror) return tokoMirror;
-  const { getStore } = require('@netlify/blobs');
-  tokoMirror = getStore({ name: NAMA_TOKO, consistency: 'strong' });
+  // Lewat src/blobs.js (konteks dari event + konsistensi yang didukung).
+  const { bukaToko } = require('./blobs');
+  tokoMirror = bukaToko(NAMA_TOKO);
   return tokoMirror;
 }
 

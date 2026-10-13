@@ -44,8 +44,10 @@ class BlobsSessionStore extends Store {
 
   _store() {
     if (this.toko) return this.toko;
-    const { getStore } = require('@netlify/blobs');
-    this.toko = getStore({ name: NAMA_TOKO, consistency: 'strong' });
+    // Lewat src/blobs.js: konteks Blobs dipasang dari event dan tingkat
+    // konsistensi disesuaikan dengan yang didukung runtime.
+    const { bukaToko } = require('./blobs');
+    this.toko = bukaToko(NAMA_TOKO);
     return this.toko;
   }
 

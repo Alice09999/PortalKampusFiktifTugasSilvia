@@ -18,6 +18,7 @@
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const blobs = require('../../src/blobs');
 
 // Satu-satunya direktori writable di Lambda. os.tmpdir() = /tmp di Linux.
 const TMP = process.env.TMP_DIR || os.tmpdir();
@@ -108,8 +109,7 @@ function salinDatabase() {
 }
 
 async function ambilDariBlobs() {
-  const { getStore } = require('@netlify/blobs');
-  const toko = getStore({ name: TOKO, consistency: 'strong' });
+  const toko = blobs.bukaToko(TOKO);
   const isi = await toko.get('db/kampuskue.db', { type: 'arrayBuffer' });
   return isi ? Buffer.from(isi) : null;
 }
@@ -201,6 +201,9 @@ function muat() {
 }
 
 exports.handler = async (event, context) => {
+  // Wajib pertama: pasang konteks Blobs dari event sebelum ada satu pun
+  // getStore() (hydrate database, sesi, unggahan) yang dipanggil.
+  blobs.hubungkanDariEvent(event);
   const handler = await muat();
   return handler(event, context);
 };

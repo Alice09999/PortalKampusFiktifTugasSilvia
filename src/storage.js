@@ -32,9 +32,10 @@ function backend() {
 function store() {
   if (toko) return toko;
   // Require dinamis: hanya dipanggil bila backend = blobs, sehingga instalasi
-  // lokal tanpa dependensi Netlify tetap berjalan normal.
-  const { getStore } = require('@netlify/blobs');
-  toko = getStore({ name: NAMA_TOKO, consistency: 'strong' });
+  // lokal tanpa dependensi Netlify tetap berjalan normal. Lewat src/blobs.js
+  // agar konteks & tingkat konsistensi ditangani di satu tempat.
+  const { bukaToko } = require('./blobs');
+  toko = bukaToko(NAMA_TOKO);
   return toko;
 }
 
