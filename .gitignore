@@ -1,35 +1,60 @@
-# --- Rahasia & konfigurasi lokal (JANGAN PERNAH di-commit) ---
+# =====================================================================
+# Secrets & konfigurasi lokal  (JANGAN PERNAH di-commit)
+# =====================================================================
 .env
 .env.*
 !.env.example
+!.env.*.example
 
-# --- Dependensi & build ---
+# =====================================================================
+# Dependencies
+# =====================================================================
 node_modules/
 npm-debug.log*
 yarn-error.log*
 package-lock.json.bak
 
-# --- Basis data & file unggahan pengguna ---
-data/*.db
-data/*.db-journal
-data/*.db-wal
-data/*.db-shm
+# =====================================================================
+# Database lokal & backup  (semua data dibuat ulang oleh npm run init:db)
+# =====================================================================
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+*.sqlite-wal
+*.sqlite-shm
+*.sql
+*.dump
+
+# =====================================================================
+# Berkas unggahan pengguna (tidak boleh terunggah ke repository)
+# =====================================================================
 uploads/*
 !uploads/.gitkeep
 
-# --- Log & file sementara ---
+# =====================================================================
+# Log & file sementara
+# =====================================================================
 *.log
+logs/
 tmp/
 temp/
-.cache/
 
-# --- Editor / OS ---
+# =====================================================================
+# Build outputs & cache
+# =====================================================================
+coverage/
+.cache/
+.vercel
+.netlify
+
+# =====================================================================
+# Editor & file OS
+# =====================================================================
 .vscode/
 .idea/
 *.swp
 .DS_Store
 Thumbs.db
-
-# --- Lingkungan deployment ---
-.vercel
-.netlify

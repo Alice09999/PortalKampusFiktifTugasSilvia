@@ -105,7 +105,7 @@ async function login(klien, username, password) {
   return klien.postForm(`${BASE}/login`, { _csrf: tok, username, password });
 }
 
-const db = new DatabaseSync(path.join(ROOT, 'data', 'kampuskue.db'));
+const db = new DatabaseSync(process.env.DB_PATH || path.join(ROOT, 'data', 'kampuskue.db'));
 const q1 = (sql, ...p) => db.prepare(sql).get(...p);
 
 // ===================================================================== main
@@ -507,7 +507,7 @@ const q1 = (sql, ...p) => db.prepare(sql).get(...p);
   const tokBrute = tokenCsrf(halBrute.text);
   const kamus = ['123456', 'password', 'admin123', 'kampus', 'kampus123', 'mahasiswa', 'qwerty', 'latihan1', 'kampus2026', 'rahasia123'];
 
-  const labDb = new DatabaseSync(path.join(ROOT, 'data', 'lab.db'));
+  const labDb = new DatabaseSync(process.env.LAB_DB_PATH || path.join(ROOT, 'data', 'lab.db'));
   const hitungSebelum = labDb.prepare('SELECT COUNT(*) AS c FROM lab_login_attempts').get().c;
 
   let berhasilKe = -1;
@@ -583,7 +583,7 @@ const q1 = (sql, ...p) => db.prepare(sql).get(...p);
       HOST: '127.0.0.1',
       LAB_ENABLED: 'false',
       NODE_ENV: 'production',
-      SESSION_SECRET: 'uji-tersembunyi-1234567890abcdef'
+      SESSION_SECRET: require('crypto').randomBytes(32).toString('hex')
     },
     stdio: 'ignore'
   });
