@@ -28,7 +28,10 @@
   directory = "netlify/functions"
   node_bundler = "esbuild"
   # Pola resmi dokumentasi Netlify untuk Express.
-  external_node_modules = ["express"]
+  # ejs juga WAJIB eksternal: Express memuat mesin template dengan nama
+  # (require('ejs')) dari node_modules saat merender, sehingga bila ejs hanya
+  # dibungkus ke dalam file fungsi, render gagal dengan "Cannot find module 'ejs'".
+  external_node_modules = ["express", "ejs"]
   # File yang dibaca saat RUNTIME (bukan aset statis):
   #   views/**          -> template EJS (app.set('views', <root>/views))
   #   public/**         -> fallback aset statis dari dalam fungsi
