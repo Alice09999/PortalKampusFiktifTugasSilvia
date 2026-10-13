@@ -1,0 +1,93 @@
+<%- include('../partials/head') %>
+<%- include('../partials/nav') %>
+
+<main class="container">
+  <div class="page-head">
+    <div>
+      <h1>Dashboard Admin</h1>
+      <p>Ringkasan akun dan data akademik portal (data sintetis).</p>
+    </div>
+    <div class="btn-row">
+      <a class="btn" href="/admin/akun">Kelola Akun</a>
+    </div>
+  </div>
+
+  <%- include('../partials/flash') %>
+
+  <div class="grid grid-4" style="margin-bottom:1rem;">
+    <div class="stat">
+      <span class="label">Akun Mahasiswa</span>
+      <span class="value"><%= statistik.mahasiswa %></span>
+      <span class="hint">terdaftar pada sistem</span>
+    </div>
+    <div class="stat">
+      <span class="label">Akun Dosen</span>
+      <span class="value"><%= statistik.dosen %></span>
+      <span class="hint">pengampu mata kuliah</span>
+    </div>
+    <div class="stat">
+      <span class="label">Akun Admin</span>
+      <span class="value"><%= statistik.admin %></span>
+      <span class="hint">dinonaktifkan: <%= statistik.nonaktif %></span>
+    </div>
+    <div class="stat">
+      <span class="label">Mata Kuliah</span>
+      <span class="value"><%= statistik.courses %></span>
+      <span class="hint"><%= statistik.enrollments %> pendaftaran kelas</span>
+    </div>
+  </div>
+
+  <div class="grid grid-4" style="margin-bottom:1rem;">
+    <div class="stat">
+      <span class="label">Tugas</span>
+      <span class="value"><%= statistik.assignments %></span>
+      <span class="hint">dibuat per mata kuliah</span>
+    </div>
+    <div class="stat">
+      <span class="label">Pengumpulan</span>
+      <span class="value"><%= statistik.submissions %></span>
+      <span class="hint">berkas terkumpul</span>
+    </div>
+    <div class="stat">
+      <span class="label">Nilai Tersimpan</span>
+      <span class="value"><%= statistik.grades %></span>
+      <span class="hint">nilai akhir per mata kuliah</span>
+    </div>
+    <div class="stat">
+      <span class="label">Diskusi</span>
+      <span class="value"><%= statistik.discussions %></span>
+      <span class="hint"><%= statistik.replies %> balasan</span>
+    </div>
+  </div>
+
+  <section class="card">
+    <div class="card-title">
+      <h2>Akun Terbaru</h2>
+      <a class="btn sm secondary" href="/admin/akun">Lihat semua akun</a>
+    </div>
+    <div class="table-wrap">
+      <table class="data">
+        <thead>
+          <tr><th>ID</th><th>Nama Pengguna</th><th>Nama Lengkap</th><th>Peran</th><th>Status</th><th>Dibuat</th></tr>
+        </thead>
+        <tbody>
+          <% terbaru.forEach(function (u) { %>
+            <tr>
+              <td class="num"><%= u.id %></td>
+              <td><code><%= u.username %></code></td>
+              <td><%= u.full_name %></td>
+              <td><span class="badge primary"><%= u.role %></span></td>
+              <td>
+                <% if (u.active === 1) { %><span class="badge ok">aktif</span>
+                <% } else { %><span class="badge err">nonaktif</span><% } %>
+              </td>
+              <td><%= u.created_at %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<%- include('../partials/foot') %>

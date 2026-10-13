@@ -1,0 +1,135 @@
+<%- include('../partials/head') %>
+<%- include('../partials/nav') %>
+
+<main class="container">
+  <div class="page-head">
+    <div>
+      <h1>Penilaian</h1>
+      <p>Beri nilai akhir mata kuliah dan nilai pengumpulan tugas.</p>
+    </div>
+    <div class="btn-row">
+      <a class="btn secondary" href="/dosen">← Dashboard</a>
+    </div>
+  </div>
+
+  <%- include('../partials/flash') %>
+
+  <% if (!course) { %>
+    <div class="card"><div class="empty">Anda belum mengampu mata kuliah apa pun.</div></div>
+  <% } else { %>
+
+    <section class="card">
+      <div class="card-title">
+        <h2>Pilih Mata Kuliah</h2>
+      </div>
+      <div class="btn-row">
+        <% courses.forEach(function (c) { %>
+          <a class="btn sm <%= c.id === course.id ? '' : 'secondary' %>"
+             href="/dosen/penilaian?course=<%= c.id %>"><%= c.code %></a>
+        <% }) %>
+      </div>
+      <p class="card-sub" style="margin-top:.6rem;">
+        Sedang menilai: <strong><%= course.code %> — <%= course.name %></strong>
+        (<%= mahasiswa.length %> mahasiswa, <%= pengumpulan.length %> berkas terkumpul)
+      </p>
+    </section>
+
+    <section class="card">
+      <div class="card-title">
+        <h2>Nilai Akhir Mata Kuliah</h2>
+        <span class="card-sub">Kosongkan bila belum ingin menilai</span>
+      </div>
+      <% if (mahasiswa.length === 0) { %>
+        <div class="empty">Tidak ada mahasiswa terdaftar.</div>
+      <% } else { %>
+        <form method="post" action="/dosen/penilaian/akhir">
+          <%- csrfField() %>
+          <input type="hidden" name="course_id" value="<%= course.id %>">
+          <div class="table-wrap">
+            <table class="data">
+              <thead>
+                <tr><th>NIM</th><th>Nama Mahasiswa</th><th class="num">Nilai (0–100)</th><th>Huruf</th></tr>
+              </thead>
+              <tbody>
+                <% mahasiswa.forEach(function (m) { %>
+                  <tr>
+                    <td><code><%= m.identity_no %></code></td>
+                    <td><%= m.full_name %></td>
+                    <td class="num">
+                      <input class="score" type="number" name="nilai_<%= m.id %>"
+                             min="0" max="100" step="0.1" placeholder="—"
+                             value="<%= (m.score === null || m.score === undefined) ? '' : m.score %>">
+                    </td>
+                    <td><span class="badge <%= m.grade_letter ? 'ok' : 'neutral' %>"><%= m.grade_letter || '—' %></span></td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+          <div class="btn-row" style="margin-top:.8rem;">
+            <button class="btn success" type="submit">Simpan Seluruh Nilai Akhir</button>
+            <span class="card-sub">Perubahan disimpan langsung ke basis data.</span>
+          </div>
+        </form>
+      <% } %>
+    </section>
+
+    <section class="card">
+      <div class="card-title">
+        <h2>Nilai Pengumpulan Tugas</h2>
+        <span class="card-sub">Unduh berkas untuk memeriksa, lalu isi skor &amp; umpan balik</span>
+      </div>
+      <% if (pengumpulan.length === 0) { %>
+        <div class="empty">Belum ada berkas yang dikumpulkan mahasiswa.</div>
+      <% } else { %>
+        <% pengumpulan.forEach(function (p) { %>
+          <form method="post" action="/dosen/penilaian/tugas/<%= p.id %>"
+                style="border:1px solid var(--border);border-radius:12px;padding:.85rem .95rem;margin-bottom:.7rem;background:var(--surface-2);">
+            <%- csrfField() %>
+            <div class="card-title" style="margin-bottom:.55rem;">
+              <div>
+                <strong><%= p.tugas_title %></strong>
+                <div class="card-sub">
+                  <%= p.student_name %> · <code><%= p.identity_no %></code>
+                  · diunggah <%= p.submitted_at %>
+                </div>
+              </div>
+              <div class="btn-row">
+                <% if (p.file_name) { %>
+                  <a class="btn sm secondary" href="/files/<%= p.id %>">Unduh berkas</a>
+                <% } else { %>
+                  <span class="badge neutral">tanpa berkas</span>
+                <% } %>
+                <% if (p.score !== null && p.score !== undefined) { %>
+                  <span class="badge ok">sudah dinilai</span>
+                <% } else { %>
+                  <span class="badge warn">belum dinilai</span>
+                <% } %>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="field">
+                <label>Nilai (0–<%= p.max_score %>)</label>
+                <input class="score" type="number" name="score" min="0" max="<%= p.max_score %>"
+                       step="0.1" placeholder="—" value="<%= (p.score === null || p.score === undefined) ? '' : p.score %>">
+              </div>
+              <div class="field" style="flex:1 1 320px;">
+                <label>Umpan balik</label>
+                <input type="text" name="feedback" maxlength="1000"
+                       placeholder="Umpan balik singkat untuk mahasiswa"
+                       value="<%= p.feedback || '' %>">
+              </div>
+              <div class="field">
+                <button class="btn sm success" type="submit">Simpan Nilai</button>
+              </div>
+            </div>
+          </form>
+        <% }) %>
+        <p class="card-sub">Kolom nilai yang dikosongkan akan disimpan sebagai “belum dinilai”.</p>
+      <% } %>
+    </section>
+
+  <% } %>
+</main>
+
+<%- include('../partials/foot') %>

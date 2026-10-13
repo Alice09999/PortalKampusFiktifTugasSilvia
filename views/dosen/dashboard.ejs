@@ -1,0 +1,73 @@
+<%- include('../partials/head') %>
+<%- include('../partials/nav') %>
+
+<main class="container">
+  <div class="page-head">
+    <div>
+      <h1>Dashboard Dosen</h1>
+      <p>Selamat bertugas, <%= user.fullName %> — semester Ganjil 2026/2027.</p>
+    </div>
+    <div class="btn-row">
+      <a class="btn" href="/dosen/penilaian">Buka Penilaian</a>
+    </div>
+  </div>
+
+  <%- include('../partials/flash') %>
+
+  <div class="grid grid-3" style="margin-bottom:1rem;">
+    <div class="stat">
+      <span class="label">Mata Kuliah Diampu</span>
+      <span class="value"><%= courses.length %></span>
+      <span class="hint">semester ini</span>
+    </div>
+    <div class="stat">
+      <span class="label">Total Mahasiswa</span>
+      <span class="value"><%= totalMahasiswa %></span>
+      <span class="hint">mahasiswa unik di kelas Anda</span>
+    </div>
+    <div class="stat">
+      <span class="label">Belum Dinilai</span>
+      <span class="value"><%= belumDinilai + belumAdaNilai %></span>
+      <span class="hint"><%= belumDinilai %> pengumpulan · <%= belumAdaNilai %> nilai akhir</span>
+    </div>
+  </div>
+
+  <section class="card">
+    <div class="card-title">
+      <h2>Mata Kuliah yang Diajar</h2>
+    </div>
+    <% if (courses.length === 0) { %>
+      <div class="empty">Anda belum mengampu mata kuliah apa pun.</div>
+    <% } else { %>
+      <div class="table-wrap">
+        <table class="data">
+          <thead>
+            <tr>
+              <th>Kode</th><th>Mata Kuliah</th><th>SKS</th>
+              <th class="num">Mahasiswa</th><th class="num">Tugas</th><th>Aksi</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% courses.forEach(function (c) { %>
+              <tr>
+                <td><span class="badge primary"><%= c.code %></span></td>
+                <td><%= c.name %></td>
+                <td class="num"><%= c.credits %></td>
+                <td class="num"><%= c.jml_mahasiswa %></td>
+                <td class="num"><%= c.jml_tugas %></td>
+                <td>
+                  <div class="btn-row">
+                    <a class="btn sm secondary" href="/dosen/mata-kuliah/<%= c.id %>">Detail</a>
+                    <a class="btn sm" href="/dosen/penilaian?course=<%= c.id %>">Beri Nilai</a>
+                  </div>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+  </section>
+</main>
+
+<%- include('../partials/foot') %>

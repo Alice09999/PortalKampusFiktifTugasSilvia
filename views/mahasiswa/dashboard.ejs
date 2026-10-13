@@ -1,0 +1,124 @@
+<%- include('../partials/head') %>
+<%- include('../partials/nav') %>
+
+<main class="container">
+  <div class="page-head">
+    <div>
+      <h1>Dashboard Mahasiswa</h1>
+      <p>Selamat datang, <%= user.fullName %> — semester Ganjil 2026/2027.</p>
+    </div>
+    <div class="btn-row">
+      <a class="btn secondary" href="/mahasiswa/nilai">Lihat Nilai</a>
+      <a class="btn" href="/mahasiswa/tugas">Unggah Tugas</a>
+    </div>
+  </div>
+
+  <%- include('../partials/flash') %>
+
+  <div class="grid grid-4" style="margin-bottom:1rem;">
+    <div class="stat">
+      <span class="label">Mata Kuliah</span>
+      <span class="value"><%= courses.length %></span>
+      <span class="hint">diambil semester ini</span>
+    </div>
+    <div class="stat">
+      <span class="label">Rata-rata Nilai</span>
+      <span class="value"><%= gradeStat.rata ? Number(gradeStat.rata).toFixed(1) : '—' %></span>
+      <span class="hint">dari <%= gradeStat.jumlah %> mata kuliah bernilai</span>
+    </div>
+    <div class="stat">
+      <span class="label">Tugas Belum Diunggah</span>
+      <span class="value"><%= pending.length %></span>
+      <span class="hint">segera kerjakan</span>
+    </div>
+    <div class="stat">
+      <span class="label">Tugas Dinilai</span>
+      <span class="value"><%= graded.jumlah %>/<%= submitted.jumlah %></span>
+      <span class="hint">sudah dikumpulkan</span>
+    </div>
+  </div>
+
+  <div class="grid grid-2">
+    <section class="card">
+      <div class="card-title">
+        <h2>Mata Kuliah Saya</h2>
+        <a class="btn sm secondary" href="/mahasiswa/nilai">Detail nilai</a>
+      </div>
+      <% if (courses.length === 0) { %>
+        <div class="empty">Anda belum terdaftar pada mata kuliah mana pun.</div>
+      <% } else { %>
+        <div class="table-wrap">
+          <table class="data">
+            <thead>
+              <tr><th>Kode</th><th>Mata Kuliah</th><th>SKS</th><th>Dosen</th><th class="num">Tugas</th></tr>
+            </thead>
+            <tbody>
+              <% courses.forEach(function (c) { %>
+                <tr>
+                  <td><span class="badge primary"><%= c.code %></span></td>
+                  <td><%= c.name %></td>
+                  <td class="num"><%= c.credits %></td>
+                  <td><%= c.dosen_name %></td>
+                  <td class="num"><%= c.jml_tugas %></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </section>
+
+    <section class="card">
+      <div class="card-title">
+        <h2>Tugas Belum Diunggah</h2>
+        <a class="btn sm" href="/mahasiswa/tugas">Ke halaman tugas</a>
+      </div>
+      <% if (pending.length === 0) { %>
+        <div class="empty">Semua tugas sudah Anda kumpulkan. 🎉</div>
+      <% } else { %>
+        <div class="table-wrap">
+          <table class="data">
+            <thead><tr><th>Tugas</th><th>Mata Kuliah</th><th>Tenggat</th></tr></thead>
+            <tbody>
+              <% pending.forEach(function (a) { %>
+                <tr>
+                  <td><%= a.title %></td>
+                  <td><span class="badge neutral"><%= a.code %></span> <%= a.course_name %></td>
+                  <td><span class="badge warn"><%= a.due_date || '—' %></span></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </section>
+  </div>
+
+  <section class="card">
+    <div class="card-title">
+      <h2>Diskusi Terbaru</h2>
+      <a class="btn sm secondary" href="/mahasiswa/diskusi">Buka forum</a>
+    </div>
+    <% if (recentDiscussions.length === 0) { %>
+      <div class="empty">Belum ada diskusi pada mata kuliah Anda.</div>
+    <% } else { %>
+      <div class="table-wrap">
+        <table class="data">
+          <thead><tr><th>Topik</th><th>Mata Kuliah</th><th>Penulis</th><th>Waktu</th></tr></thead>
+          <tbody>
+            <% recentDiscussions.forEach(function (d) { %>
+              <tr onclick="location.href='/mahasiswa/diskusi/<%= d.id %>'" class="clickable">
+                <td><a href="/mahasiswa/diskusi/<%= d.id %>"><%= d.title %></a></td>
+                <td><span class="badge neutral"><%= d.code %></span></td>
+                <td><%= d.penulis %></td>
+                <td><%= d.created_at %></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+  </section>
+</main>
+
+<%- include('../partials/foot') %>

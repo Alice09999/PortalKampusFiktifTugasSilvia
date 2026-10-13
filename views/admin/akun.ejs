@@ -1,0 +1,170 @@
+<%- include('../partials/head') %>
+<%- include('../partials/nav') %>
+
+<main class="container">
+  <div class="page-head">
+    <div>
+      <h1>Pengelolaan Akun</h1>
+      <p>Buat akun fiktif, ubah peran, aktifkan/nonaktifkan, dan reset kata sandi.</p>
+    </div>
+    <div class="btn-row">
+      <a class="btn secondary" href="/admin">← Dashboard</a>
+    </div>
+  </div>
+
+  <%- include('../partials/flash') %>
+
+  <div class="grid grid-2">
+    <section class="card">
+      <div class="card-title">
+        <h2>Buat Akun Baru</h2>
+        <span class="card-sub">data sintetis</span>
+      </div>
+      <form method="post" action="/admin/akun">
+        <%- csrfField() %>
+        <div class="form-row">
+          <div class="field">
+            <label for="username">Nama pengguna</label>
+            <input type="text" id="username" name="username" required maxlength="32"
+                   pattern="[a-z0-9_.]{3,32}" placeholder="mis. mahasiswa13">
+            <div class="help">3–32 karakter: huruf kecil, angka, titik, garis bawah.</div>
+          </div>
+          <div class="field">
+            <label for="role">Peran</label>
+            <select id="role" name="role" required>
+              <option value="mahasiswa">Mahasiswa</option>
+              <option value="dosen">Dosen</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label for="full_name">Nama lengkap</label>
+          <input type="text" id="full_name" name="full_name" required maxlength="120"
+                 placeholder="mis. Rina Kartika (fiktif)">
+        </div>
+        <div class="form-row">
+          <div class="field">
+            <label for="identity_no">NIM / NIP fiktif</label>
+            <input type="text" id="identity_no" name="identity_no" maxlength="40" placeholder="A0112013">
+          </div>
+          <div class="field">
+            <label for="email">Surel</label>
+            <input type="email" id="email" name="email" maxlength="120" placeholder="nama@kampuskue.test">
+          </div>
+        </div>
+        <div class="field">
+          <label for="password">Kata sandi</label>
+          <input type="password" id="password" name="password" required minlength="8" maxlength="128"
+                 autocomplete="new-password">
+          <div class="help">Minimal 8 karakter. Disimpan dalam bentuk hash (bcrypt).</div>
+        </div>
+        <button class="btn" type="submit">Buat Akun</button>
+      </form>
+    </section>
+
+    <section class="card">
+      <div class="card-title">
+        <h2>Cari &amp; Filter</h2>
+        <span class="card-sub"><%= rows.length %> dari <%= total %> akun</span>
+      </div>
+      <form method="get" action="/admin/akun" class="form-row">
+        <div class="field">
+          <label for="q">Kata kunci</label>
+          <input type="text" id="q" name="q" value="<%= q %>" placeholder="username / nama / NIM">
+        </div>
+        <div class="field">
+          <label for="filter">Peran</label>
+          <select id="filter" name="filter">
+            <option value="semua" <%= filter === 'semua' ? 'selected' : '' %>>Semua</option>
+            <option value="mahasiswa" <%= filter === 'mahasiswa' ? 'selected' : '' %>>Mahasiswa</option>
+            <option value="dosen" <%= filter === 'dosen' ? 'selected' : '' %>>Dosen</option>
+            <option value="admin" <%= filter === 'admin' ? 'selected' : '' %>>Admin</option>
+          </select>
+        </div>
+        <div class="field">
+          <button class="btn secondary" type="submit">Terapkan</button>
+        </div>
+      </form>
+
+      <div class="card" style="background:var(--info-soft);border-color:#bae6fd;margin-top:.4rem;">
+        <strong style="color:var(--info);">Catatan keamanan</strong>
+        <p class="card-sub" style="color:var(--info);">
+          Hanya admin yang dapat membuka halaman ini. Perubahan peran dan status
+          diverifikasi ulang oleh server, bukan hanya oleh antarmuka.
+        </p>
+      </div>
+    </section>
+  </div>
+
+  <section class="card">
+    <div class="card-title">
+      <h2>Daftar Akun</h2>
+    </div>
+    <% if (rows.length === 0) { %>
+      <div class="empty">Tidak ada akun yang cocok dengan pencarian.</div>
+    <% } else { %>
+      <div class="table-wrap">
+        <table class="data" style="min-width:900px;">
+          <thead>
+            <tr>
+              <th>Nama Pengguna</th><th>Nama Lengkap</th><th>Identitas</th><th>Surel</th>
+              <th>Peran</th><th>Status</th><th>Aksi</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% rows.forEach(function (u) { %>
+              <tr>
+                <td><code><%= u.username %></code></td>
+                <td><%= u.full_name %></td>
+                <td><%= u.identity_no || '—' %></td>
+                <td><%= u.email || '—' %></td>
+                <td>
+                  <form method="post" action="/admin/akun/<%= u.id %>/role" style="display:flex;gap:.35rem;align-items:center;">
+                    <%- csrfField() %>
+                    <select name="role" aria-label="Peran <%= u.username %>">
+                      <option value="mahasiswa" <%= u.role === 'mahasiswa' ? 'selected' : '' %>>Mahasiswa</option>
+                      <option value="dosen" <%= u.role === 'dosen' ? 'selected' : '' %>>Dosen</option>
+                      <option value="admin" <%= u.role === 'admin' ? 'selected' : '' %>>Admin</option>
+                    </select>
+                    <button class="btn sm secondary" type="submit">Ubah</button>
+                  </form>
+                </td>
+                <td>
+                  <% if (u.active === 1) { %><span class="badge ok">aktif</span>
+                  <% } else { %><span class="badge err">nonaktif</span><% } %>
+                </td>
+                <td>
+                  <div class="btn-row">
+                    <form method="post" action="/admin/akun/<%= u.id %>/status">
+                      <%- csrfField() %>
+                      <button class="btn sm <%= u.active === 1 ? 'danger' : 'success' %>" type="submit"
+                              data-confirm="<%= u.active === 1 ? 'Nonaktifkan akun' : 'Aktifkan kembali akun' %> <%= u.username %>?">
+                        <%= u.active === 1 ? 'Nonaktifkan' : 'Aktifkan' %>
+                      </button>
+                    </form>
+                    <details>
+                      <summary class="btn sm secondary" style="list-style:none;">Reset sandi</summary>
+                      <form method="post" action="/admin/akun/<%= u.id %>/password"
+                            style="margin-top:.5rem;min-width:210px;">
+                        <%- csrfField() %>
+                        <div class="field">
+                          <label>Kata sandi baru</label>
+                          <input type="password" name="password" minlength="8" maxlength="128" required
+                                 autocomplete="new-password">
+                        </div>
+                        <button class="btn sm" type="submit">Simpan Kata Sandi</button>
+                      </form>
+                    </details>
+                  </div>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+  </section>
+</main>
+
+<%- include('../partials/foot') %>

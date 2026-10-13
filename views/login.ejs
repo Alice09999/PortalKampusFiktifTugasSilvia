@@ -1,0 +1,75 @@
+<%- include('partials/head') %>
+
+<main class="login-page">
+  <section class="login-hero">
+    <span class="pill">🛡️ Proyek latihan — data 100% sintetis</span>
+    <h1>KampusKu</h1>
+    <h2 style="font-weight:500;font-size:1.05rem;opacity:.95;margin:0;">Portal Akademik Fiktif</h2>
+    <p>
+      Portal uji coba untuk tugas <strong>Audit Laporan M5–M6 KSI</strong>.
+      Mahasiswa dapat melihat nilai, mengunggah tugas, dan berdiskusi;
+      dosen memberi nilai; admin mengelola akun.
+    </p>
+    <ul>
+      <li>Login berbasis sesi backend dengan kata sandi ter-hash (bcrypt)</li>
+      <li>Otorisasi peran diperiksa di server untuk setiap tindakan</li>
+      <li>Laboratorium SQL Injection &amp; percobaan sandi tanpa pembatasan</li>
+    </ul>
+    <span class="pill">Semua akun dan data bersifat fiktif</span>
+  </section>
+
+  <section class="login-form-wrap">
+    <div class="login-card">
+      <h1>Masuk ke Portal</h1>
+      <p class="card-sub">Gunakan akun demo di bawah ini, atau isi formulir secara manual.</p>
+
+      <%- include('partials/flash') %>
+
+      <form method="post" action="/login" autocomplete="off">
+        <%- csrfField() %>
+        <div class="field">
+          <label for="username">Nama pengguna</label>
+          <input type="text" id="username" name="username" placeholder="mis. mahasiswa01" required maxlength="64">
+        </div>
+        <div class="field">
+          <label for="password">Kata sandi</label>
+          <input type="password" id="password" name="password" placeholder="••••••••" required maxlength="128">
+        </div>
+        <button class="btn block" type="submit">Masuk</button>
+      </form>
+
+      <h3 style="margin-top:1.3rem;">Akun demo</h3>
+      <div class="table-wrap">
+        <table class="data demo-table">
+          <thead>
+            <tr><th>Peran</th><th>Nama pengguna</th><th>Kata sandi</th></tr>
+          </thead>
+          <tbody>
+            <tr class="clickable" data-fill='{"#username":"admin","#password":"admin12345"}'>
+              <td><span class="badge primary">Admin</span></td>
+              <td><code>admin</code></td><td><code>admin12345</code></td>
+            </tr>
+            <tr class="clickable" data-fill='{"#username":"dosen01","#password":"dosen12345"}'>
+              <td><span class="badge info">Dosen</span></td>
+              <td><code>dosen01</code></td><td><code>dosen12345</code></td>
+            </tr>
+            <tr class="clickable" data-fill='{"#username":"mahasiswa01","#password":"mhs12345"}'>
+              <td><span class="badge ok">Mahasiswa</span></td>
+              <td><code>mahasiswa01</code></td><td><code>mhs12345</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="help" style="margin-top:.5rem;">Klik salah satu baris untuk mengisi formulir otomatis.</p>
+
+      <p style="margin-top:1rem;font-size:.85rem;color:var(--muted);">
+        Laboratorium kerentanan dapat dicoba tanpa login:
+        <a href="/lab">buka /lab</a>
+      </p>
+    </div>
+  </section>
+</main>
+
+<script src="/js/app.js"></script>
+</body>
+</html>

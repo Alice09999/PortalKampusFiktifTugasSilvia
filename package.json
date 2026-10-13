@@ -1,0 +1,26 @@
+{
+  "name": "kampuskue-portal-akademik-fiktif",
+  "version": "1.0.0",
+  "private": true,
+  "description": "KampusKu — Portal Akademik Fiktif (proyek latihan Audit Laporan M5-M6 KSI). Seluruh data bersifat sintetis/fiktif.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "init:db": "node scripts/init-db.js",
+    "reset:db": "node scripts/init-db.js --fresh",
+    "smoke": "node scripts/smoke-test.js"
+  },
+  "engines": {
+    "node": ">=20.11"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "dotenv": "^16.4.7",
+    "ejs": "^3.1.10",
+    "express": "^4.21.2",
+    "express-session": "^1.18.1",
+    "multer": "^2.0.2"
+  }
+}

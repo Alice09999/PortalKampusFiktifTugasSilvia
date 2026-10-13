@@ -1,0 +1,57 @@
+<%- include('../partials/head') %>
+<%- include('../partials/nav') %>
+
+<main class="container">
+  <div class="page-head">
+    <div>
+      <h1><%= topic.title %></h1>
+      <p><span class="badge neutral"><%= topic.code %></span> <%= topic.course_name %></p>
+    </div>
+    <div class="btn-row">
+      <a class="btn secondary" href="/mahasiswa/diskusi">← Semua diskusi</a>
+    </div>
+  </div>
+
+  <%- include('../partials/flash') %>
+
+  <article class="topic">
+    <div class="meta">
+      Ditulis oleh <strong><%= topic.penulis %></strong> (<%= topic.penulis_role %>)
+      · <%= topic.created_at %>
+    </div>
+    <p style="white-space:pre-wrap;margin-top:.5rem;"><%= topic.body %></p>
+  </article>
+
+  <section class="card">
+    <div class="card-title">
+      <h2>Balasan (<%= replies.length %>)</h2>
+    </div>
+
+    <% if (replies.length === 0) { %>
+      <div class="empty">Belum ada balasan.</div>
+    <% } else { %>
+      <% replies.forEach(function (r) { %>
+        <div class="reply">
+          <div class="meta">
+            <strong><%= r.penulis %></strong> (<%= r.penulis_role %>) · <%= r.created_at %>
+          </div>
+          <div style="white-space:pre-wrap;"><%= r.body %></div>
+        </div>
+      <% }) %>
+    <% } %>
+
+    <div class="card" style="margin-top:1rem;background:var(--surface-2);">
+      <div class="card-title"><h3>Tambahkan balasan</h3></div>
+      <form method="post" action="/mahasiswa/diskusi/<%= topic.id %>/balas">
+        <%- csrfField() %>
+        <div class="field">
+          <label for="body">Balasan Anda</label>
+          <textarea id="body" name="body" maxlength="4000" required placeholder="Tulis balasan..."></textarea>
+        </div>
+        <button class="btn" type="submit">Kirim Balasan</button>
+      </form>
+    </div>
+  </section>
+</main>
+
+<%- include('../partials/foot') %>

@@ -1,0 +1,227 @@
+<%- include('../partials/head') %>
+<%- include('../partials/nav') %>
+
+<main class="container">
+  <div class="page-head">
+    <div>
+      <h1>Laboratorium Percobaan Sandi Tanpa Pembatasan</h1>
+      <p>Login demo tanpa rate limiting, tanpa jeda, dan tanpa penguncian akun.</p>
+    </div>
+    <div class="btn-row">
+      <a class="btn secondary" href="/lab">← Indeks Laboratorium</a>
+      <form method="post" action="/lab/login/reset" data-confirm="Hapus seluruh catatan percobaan laboratorium?">
+        <%- csrfField() %>
+        <button class="btn secondary" type="submit">Bersihkan Catatan</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="lab-banner">
+    <strong>⚠️ Objek latihan.</strong>
+    Halaman login ini <strong>tidak memiliki</strong> pembatasan jumlah percobaan.
+    Bandingkan dengan login portal utama yang menahan percobaan setelah
+    <code class="kbd">LOGIN_MAX_FAILS</code> kali gagal.
+    Seluruh akun di sini bersifat sintetis.
+  </div>
+
+  <div class="grid grid-4" style="margin-bottom:1rem;">
+    <div class="stat">
+      <span class="label">Total Percobaan Tercatat</span>
+      <span class="value" id="autoCount"><%= total %></span>
+      <span class="hint">di seluruh laboratorium</span>
+    </div>
+    <div class="stat">
+      <span class="label">Akun Sasaran</span>
+      <span class="value" style="font-size:1.15rem;"><%= target %></span>
+      <span class="hint">akun laboratorium sintetis</span>
+    </div>
+    <div class="stat">
+      <span class="label">Batas Percobaan</span>
+      <span class="value">TIDAK ADA</span>
+      <span class="hint">tidak ada lockout / jeda / CAPTCHA</span>
+    </div>
+    <div class="stat">
+      <span class="label">Status Lab</span>
+      <span class="value" style="font-size:1.15rem;color:var(--danger);">AKTIF</span>
+      <span class="hint">matikan dengan LAB_ENABLED=false</span>
+    </div>
+  </div>
+
+  <div class="grid grid-2">
+    <section class="card">
+      <div class="card-title">
+        <h2>Coba Login Manual</h2>
+        <span class="badge err">tanpa pembatasan</span>
+      </div>
+
+      <% if (hasil) { %>
+        <div class="alert <%= hasil.ok ? 'success' : 'error' %>">
+          <span><strong><%= hasil.ok ? 'Berhasil' : 'Gagal' %>: </strong><%= hasil.message %></span>
+        </div>
+        <p class="card-sub">
+          Percobaan untuk akun <code class="kbd"><%= inputUser %></code>:
+          <strong><%= hasil.totalPercobaanAkun %></strong> kali —
+          sistem tetap melayani permintaan tanpa memblokir.
+        </p>
+      <% } %>
+
+      <form method="post" action="/lab/login">
+        <%- csrfField() %>
+        <div class="field">
+          <label for="lu">Nama pengguna</label>
+          <input type="text" id="lu" name="username" required maxlength="64"
+                 value="<%= inputUser || target %>" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="lp">Kata sandi</label>
+          <input type="password" id="lp" name="password" maxlength="128" required autocomplete="off">
+          <div class="help">Kata sandi yang benar untuk <code class="kbd"><%= target %></code> ada di kamus uji di sebelah kanan.</div>
+        </div>
+        <button class="btn danger" type="submit">Kirim Percobaan Login</button>
+      </form>
+
+      <p class="card-sub" style="margin-top:.8rem;">
+        Kirim berkali-kali — tidak akan pernah muncul pesan “terlalu banyak percobaan”,
+        tidak ada jeda, dan akun tidak pernah terkunci.
+      </p>
+    </section>
+
+    <section class="card">
+      <div class="card-title">
+        <h2>Simulasi Percobaan Beruntun</h2>
+        <span class="badge warn">brute force</span>
+      </div>
+      <p class="card-sub">
+        Tombol di bawah mengirim <strong>10 percobaan login beruntun</strong>
+        terhadap akun <code class="kbd"><%= target %></code> memakai kamus uji.
+        Perhatikan bahwa seluruh percobaan diterima, dan percobaan ke-9 berhasil menebak
+        kata sandi.
+      </p>
+      <div class="btn-row" style="margin:.7rem 0;">
+        <button class="btn danger" id="autoRun" type="button"
+                data-username="<%= target %>"
+                data-csrf="<%= csrfToken %>"
+                data-words='<%= JSON.stringify(kamus) %>'>
+          Jalankan simulasi percobaan beruntun
+        </button>
+      </div>
+      <div class="table-wrap">
+        <table class="data" id="autoResults">
+          <thead>
+            <tr><th>#</th><th>Kata Sandi Dicoba</th><th>Hasil</th><th class="num">Total Percobaan Akun</th><th>Keterangan</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <h3 style="margin-top:1.2rem;">Kamus uji (sintetis)</h3>
+      <div class="btn-row">
+        <% kamus.forEach(function (k) { %>
+          <code class="kbd"><%= k %></code>
+        <% }) %>
+      </div>
+    </section>
+  </div>
+
+  <section class="card">
+    <div class="card-title">
+      <h2>Catatan Percobaan Tersimpan</h2>
+      <span class="card-sub">bukti bahwa server menerima semua percobaan</span>
+    </div>
+
+    <h3>Ringkasan per akun</h3>
+    <% if (perAkun.length === 0) { %>
+      <div class="empty">Belum ada percobaan yang dicatat.</div>
+    <% } else { %>
+      <div class="table-wrap">
+        <table class="data">
+          <thead><tr><th>Nama Pengguna</th><th class="num">Jumlah Percobaan</th><th>Pernah Berhasil?</th></tr></thead>
+          <tbody>
+            <% perAkun.forEach(function (a) { %>
+              <tr>
+                <td><code><%= a.username %></code></td>
+                <td class="num"><strong><%= a.c %></strong></td>
+                <td>
+                  <% if (a.pernah_sukses === 1) { %><span class="badge err">ya — sandi tebakan cocok</span>
+                  <% } else { %><span class="badge neutral">belum</span><% } %>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+
+    <h3 style="margin-top:1.2rem;">25 percobaan terakhir</h3>
+    <% if (riwayat.length === 0) { %>
+      <div class="empty">Belum ada riwayat.</div>
+    <% } else { %>
+      <div class="table-wrap">
+        <table class="data">
+          <thead><tr><th>ID</th><th>Nama Pengguna</th><th>Hasil</th><th>Waktu</th></tr></thead>
+          <tbody>
+            <% riwayat.forEach(function (r) { %>
+              <tr>
+                <td class="num"><%= r.id %></td>
+                <td><code><%= r.username %></code></td>
+                <td>
+                  <% if (r.success === 1) { %><span class="badge ok">berhasil</span>
+                  <% } else { %><span class="badge err">gagal</span><% } %>
+                </td>
+                <td><%= r.created_at %></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+  </section>
+
+  <section class="card">
+    <div class="card-title"><h2>Risiko &amp; Cara Memperbaikinya</h2></div>
+    <div class="grid grid-2">
+      <div>
+        <h3>Risiko</h3>
+        <ul style="font-size:.9rem;">
+          <li>Pengguna dapat mencoba ribuan kombinasi kata sandi tanpa hambatan.</li>
+          <li>Akun sah dapat ditebak oleh penyerang otomatis (credential stuffing).</li>
+          <li>Tidak ada jejak pembatasan sehingga serangan sulit terdeteksi.</li>
+          <li>Beban server meningkat karena permintaan login tak terbatas.</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Perbaikan yang disarankan</h3>
+        <ul style="font-size:.9rem;">
+          <li><strong>Rate limiting</strong> berbasis IP + nama pengguna (mis. 5 menit).</li>
+          <li><strong>Jeda/sleep</strong> progresif setelah beberapa kegagalan.</li>
+          <li><strong>Penguncian akun</strong> sementara + CAPTCHA setelah ambang batas.</li>
+          <li><strong>Multi-factor auth</strong> dan pemantauan log percobaan gagal.</li>
+        </ul>
+      </div>
+    </div>
+
+    <p class="card-sub" style="margin-top:.9rem;">Contoh penerapan rate limiting sederhana (dipakai pada login portal utama):</p>
+    <pre class="code">const batas = new Map();
+
+function cekPercobaan(ip, username) {
+  const kunci = `${ip}|${username}`;
+  const data = batas.get(kunci) || { gagal: 0, kunciSampai: 0 };
+  if (Date.now() &lt; data.kunciSampai) return { terkunci: true };
+  return { terkunci: false, sisa: Math.max(0, 5 - data.gagal) };
+}
+
+function catatGagal(ip, username) {
+  const kunci = `${ip}|${username}`;
+  const data = batas.get(kunci) || { gagal: 0, kunciSampai: 0 };
+  data.gagal++;
+  if (data.gagal &gt;= 5) data.kunciSampai = Date.now() + 5 * 60_000; // kunci 5 menit
+  batas.set(kunci, data);
+}</pre>
+    <p class="card-sub">
+      Alternatif produksi: gunakan pustaka rate limiter (mis. <code class="kbd">express-rate-limit</code>)
+      di depan rute <code class="kbd">POST /login</code>, atau pembatasan di tingkat reverse proxy/nginx.
+    </p>
+  </section>
+</main>
+
+<%- include('../partials/foot') %>

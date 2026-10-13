@@ -1,0 +1,229 @@
+<%- include('../partials/head') %>
+<%- include('../partials/nav') %>
+
+<main class="container">
+  <div class="page-head">
+    <div>
+      <h1>Laboratorium SQL Injection</h1>
+      <p>Kueri digabung dengan string — sengaja rentan untuk latihan audit.</p>
+    </div>
+    <div class="btn-row">
+      <a class="btn secondary" href="/lab">← Indeks Laboratorium</a>
+    </div>
+  </div>
+
+  <div class="lab-banner">
+    <strong>⚠️ Hanya untuk latihan lokal.</strong>
+    Basis data <code class="kbd">data/lab.db</code> berisi akun laboratorium sintetis dan
+    tidak berhubungan dengan portal utama. Jangan menguji pola ini terhadap situs eksternal.
+  </div>
+
+  <%- include('../partials/flash') %>
+
+  <div class="grid grid-2">
+    <!-- ============================ UJI COBA 1: PENCARIAN ============================ -->
+    <section class="card">
+      <div class="card-title">
+        <h2>Uji A · Pencarian Pengguna</h2>
+        <span class="badge err">SQL Injection</span>
+      </div>
+      <p class="card-sub">
+        Masukkan kata kunci pencarian. Bandingkan hasil versi rentan dengan versi berparameter.
+      </p>
+
+      <form method="post" action="/lab/sqli">
+        <%- csrfField() %>
+        <input type="hidden" name="mode" value="cari">
+        <div class="field">
+          <label for="q">Kata kunci</label>
+          <input type="text" id="q" name="q" maxlength="300"
+                 value="<%= input.q %>"
+                 placeholder="mis. lab_  —  atau payload: ' OR '1'='1">
+          <div class="help">
+            Saran payload: <code class="kbd">' OR '1'='1</code> ·
+            <code class="kbd">%' OR 1=1 -- </code> ·
+            <code class="kbd">x' UNION SELECT id,username,full_name,role,email FROM lab_users -- </code>
+          </div>
+        </div>
+        <button class="btn danger" type="submit">Jalankan Kueri Rentan</button>
+      </form>
+
+      <% if (result && result.kind === 'search') { %>
+        <% if (result.error) { %>
+          <div class="alert error" style="margin-top:.9rem;">
+            <span><strong>Kueri gagal: </strong><%= result.error %></span>
+          </div>
+        <% } else { %>
+          <h3 style="margin-top:1.1rem;">Versi RENTAN (konkatenasi string)</h3>
+          <p class="card-sub">Kueri yang dieksekusi server:</p>
+          <pre class="code"><%= result.sqlVulnerable %></pre>
+          <p class="card-sub">
+            Hasil: <strong><%= result.rowsVulnerable.length %> baris</strong>
+            <% if (result.rowsVulnerable.length > 0) { %>
+              <span class="badge err">injeksi berhasil menembus filter</span>
+            <% } %>
+          </p>
+          <div class="table-wrap" data-hide-empty>
+            <table class="data">
+              <thead>
+                <tr><th>ID</th><th>Username</th><th>Nama</th><th>Peran</th><th>Surel</th></tr>
+              </thead>
+              <tbody>
+                <% result.rowsVulnerable.forEach(function (r) { %>
+                  <tr>
+                    <td class="num"><%= r.id %></td>
+                    <td><code><%= r.username %></code></td>
+                    <td><%= r.full_name %></td>
+                    <td><span class="badge neutral"><%= r.role %></span></td>
+                    <td><%= r.email %></td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+
+          <h3 style="margin-top:1.4rem;">Versi PERBAIKAN (query berparameter)</h3>
+          <p class="card-sub">Kueri yang dieksekusi server:</p>
+          <pre class="code"><%= result.sqlFixed %></pre>
+          <p class="card-sub">Hasil: <strong><%= result.rowsFixed.length %> baris</strong> (payload diperlakukan sebagai teks biasa)</p>
+          <div class="table-wrap" data-hide-empty>
+            <table class="data">
+              <thead>
+                <tr><th>ID</th><th>Username</th><th>Nama</th><th>Peran</th><th>Surel</th></tr>
+              </thead>
+              <tbody>
+                <% result.rowsFixed.forEach(function (r) { %>
+                  <tr>
+                    <td class="num"><%= r.id %></td>
+                    <td><code><%= r.username %></code></td>
+                    <td><%= r.full_name %></td>
+                    <td><span class="badge neutral"><%= r.role %></span></td>
+                    <td><%= r.email %></td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+        <% } %>
+      <% } %>
+    </section>
+
+    <!-- ============================= UJI COBA 2: LOGIN ============================== -->
+    <section class="card">
+      <div class="card-title">
+        <h2>Uji B · Login Demo</h2>
+        <span class="badge err">Bypass Autentikasi</span>
+      </div>
+      <p class="card-sub">
+        Masukkan kombinasi nama pengguna &amp; kata sandi. Coba payload bypass pada kolom nama pengguna.
+      </p>
+
+      <form method="post" action="/lab/sqli">
+        <%- csrfField() %>
+        <input type="hidden" name="mode" value="login">
+        <div class="field">
+          <label for="lu">Nama pengguna laboratorium</label>
+          <input type="text" id="lu" name="username" maxlength="200"
+                 value="<%= input.username %>"
+                 placeholder="mis. lab_adi — atau: ' OR 1=1 -- ">
+        </div>
+        <div class="field">
+          <label for="lp">Kata sandi</label>
+          <input type="text" id="lp" name="password" maxlength="200"
+                 value="<%= input.password %>" placeholder="bebas, mis. apa saja">
+        </div>
+        <button class="btn danger" type="submit">Jalankan Login Rentan</button>
+      </form>
+
+      <% if (result && result.kind === 'login') { %>
+        <h3 style="margin-top:1.1rem;">Versi RENTAN (konkatenasi string)</h3>
+        <pre class="code"><%= result.sqlVulnerable %></pre>
+        <% if (result.errorVulnerable) { %>
+          <div class="alert error">
+            <span><strong>Kueri gagal: </strong><%= result.errorVulnerable %></span>
+          </div>
+        <% } else if (result.rowVulnerable) { %>
+          <div class="alert error">
+            <span>
+              <strong>Login rentan BERHASIL (bypass).</strong>
+              Server menganggap Anda masuk sebagai
+              <%= result.rowVulnerable.full_name %> (<%= result.rowVulnerable.username %>)
+              peran <%= result.rowVulnerable.role %> tanpa mengetahui kata sandi yang benar.
+            </span>
+          </div>
+        <% } else { %>
+          <div class="alert warning">
+            <span><strong>Login rentan ditolak.</strong> Tidak ada baris yang cocok — coba payload di atas.</span>
+          </div>
+        <% } %>
+
+        <h3 style="margin-top:1.3rem;">Versi PERBAIKAN (kueri berparameter + hash bcrypt)</h3>
+        <pre class="code"><%= result.sqlFixed %></pre>
+        <% if (result.okFixed) { %>
+          <div class="alert success">
+            <span><strong>Login aman BERHASIL.</strong> Nama pengguna dan kata sandi benar-benar cocok (login sebagai <%= result.fixedUser.username %>). Payload di atas ditolak.</span>
+          </div>
+        <% } else { %>
+          <div class="alert info">
+            <span><strong>Login aman ditolak.</strong> Payload tidak pernah menjadi bagian dari kueri, hanya dipakai sebagai nilai pencarian.</span>
+          </div>
+        <% } %>
+      <% } %>
+    </section>
+  </div>
+
+  <!-- ================================== PANDUAN ================================== -->
+  <section class="card">
+    <div class="card-title"><h2>Cara Menguji &amp; Hasil yang Diharapkan</h2></div>
+    <div class="table-wrap">
+      <table class="data">
+        <thead>
+          <tr><th>Langkah</th><th>Input</th><th>Hasil yang diharapkan</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>1. Pencarian normal</td>
+            <td><code class="kbd">lab</code></td>
+            <td>Hanya baris laboratorium yang mengandung “lab” muncul (4 baris).</td>
+          </tr>
+          <tr>
+            <td>2. Pencarian injeksi</td>
+            <td><code class="kbd">' OR '1'='1</code></td>
+            <td><span class="badge err">SEMUA baris</span> pengguna laboratorium ikut keluar — filter berhasil ditembus.</td>
+          </tr>
+          <tr>
+            <td>3. UNION injection</td>
+            <td><code class="kbd">x' UNION SELECT id,username,full_name,role,email FROM lab_users -- </code></td>
+            <td>Seluruh isi tabel <code class="kbd">lab_users</code> tampil melalui kolom hasil pencarian.</td>
+          </tr>
+          <tr>
+            <td>4. Login bypass</td>
+            <td>pengguna <code class="kbd">' OR 1=1 -- </code> · sandi bebas</td>
+            <td><span class="badge err">login berhasil</span> padahal kata sandi tidak diketahui.</td>
+          </tr>
+          <tr>
+            <td>5. Versi perbaikan</td>
+            <td>payload yang sama pada kotak “versi berparameter”</td>
+            <td><span class="badge ok">ditolak</span> — payload diperlakukan sebagai teks biasa, 0 baris cocok.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3 style="margin-top:1.2rem;">Contoh perbaikan pada aplikasi (Node.js + SQLite)</h3>
+    <p class="card-sub">Salah (rentan):</p>
+    <pre class="code">const sql = "SELECT * FROM users WHERE username = '" + input + "'";
+db.prepare(sql).all();</pre>
+    <p class="card-sub">Benar (query berparameter):</p>
+    <pre class="code">const sql = "SELECT * FROM users WHERE username = ?";
+db.prepare(sql).all(input);   // input tidak pernah menjadi bagian dari kueri</pre>
+    <p class="card-sub">
+      Prinsip serupa berlaku untuk basis data lain: gunakan placeholder
+      <code class="kbd">?</code> (SQLite/MySQL), <code class="kbd">$1</code> (PostgreSQL),
+      atau <code class="kbd">:nama</code> (Oracle/PLSQL) — jangan pernah menyusun SQL
+      dengan nilai dari pengguna.
+    </p>
+  </section>
+</main>
+
+<%- include('../partials/foot') %>

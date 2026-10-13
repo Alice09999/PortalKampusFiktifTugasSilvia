@@ -1,0 +1,104 @@
+<%- include('../partials/head') %>
+<%- include('../partials/nav') %>
+
+<main class="container">
+  <div class="page-head">
+    <div>
+      <h1>Tugas Saya</h1>
+      <p>Lihat status pengumpulan dan unggah berkas tugas ke server.</p>
+    </div>
+    <div class="btn-row">
+      <a class="btn secondary" href="/mahasiswa">Kembali ke Dashboard</a>
+      <a class="btn secondary" href="/mahasiswa/nilai">Lihat Nilai</a>
+    </div>
+  </div>
+
+  <%- include('../partials/flash') %>
+
+  <section class="card">
+    <div class="card-title">
+      <h2>Daftar Tugas</h2>
+      <span class="card-sub">Format berkas: <%= ['.pdf', '.doc', '.docx', '.png', '.jpg', '.jpeg', '.zip', '.txt'].join(' ') %> — maksimal 5 MB</span>
+    </div>
+
+    <% if (rows.length === 0) { %>
+      <div class="empty">Belum ada tugas pada mata kuliah yang Anda ikuti.</div>
+    <% } else { %>
+      <div class="table-wrap" style="min-width:0;">
+        <table class="data" style="min-width:760px;">
+          <thead>
+            <tr>
+              <th>Tugas</th>
+              <th>Mata Kuliah</th>
+              <th>Tenggat</th>
+              <th>Status</th>
+              <th class="num">Nilai</th>
+              <th>Aksi</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% rows.forEach(function (a) { %>
+              <tr>
+                <td>
+                  <strong><%= a.title %></strong>
+                  <% if (a.description) { %>
+                    <div class="card-sub"><%= a.description %></div>
+                  <% } %>
+                </td>
+                <td><span class="badge neutral"><%= a.code %></span> <%= a.course_name %></td>
+                <td><span class="badge warn"><%= a.due_date || '—' %></span></td>
+                <td>
+                  <% if (!a.sub_id) { %>
+                    <span class="badge err">Belum dikumpulkan</span>
+                  <% } else if (a.score === null || a.score === undefined) { %>
+                    <span class="badge info">Sudah diunggah · menunggu nilai</span>
+                  <% } else { %>
+                    <span class="badge ok">Sudah dinilai</span>
+                  <% } %>
+                  <% if (a.sub_id) { %>
+                    <div class="card-sub">
+                      <%= a.submitted_at %>
+                      <% if (a.file_name) { %> · <a href="/files/<%= a.sub_id %>">unduh berkas</a><% } %>
+                    </div>
+                  <% } %>
+                </td>
+                <td class="num">
+                  <% if (a.score !== null && a.score !== undefined) { %>
+                    <strong><%= Number(a.score).toFixed(1) %></strong> / <%= a.max_score %>
+                    <% if (a.feedback) { %><div class="card-sub"><%= a.feedback %></div><% } %>
+                  <% } else { %>
+                    <span class="badge neutral">—</span>
+                  <% } %>
+                </td>
+                <td>
+                  <details>
+                    <summary class="btn sm <%= a.sub_id ? 'secondary' : '' %>" style="list-style:none;">
+                      <%= a.sub_id ? 'Perbarui' : 'Unggah' %>
+                    </summary>
+                    <form method="post" action="/mahasiswa/tugas/<%= a.id %>/submit"
+                          enctype="multipart/form-data" style="margin-top:.5rem;min-width:220px;">
+                      <%- csrfField() %>
+                      <div class="field">
+                        <label>Berkas tugas</label>
+                        <input type="file" name="berkas" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.zip,.txt" required>
+                      </div>
+                      <div class="field">
+                        <label>Catatan (opsional)</label>
+                        <textarea name="catatan" maxlength="500" style="min-height:60px;"><%= a.note || '' %></textarea>
+                      </div>
+                      <button class="btn sm" type="submit">
+                        <%= a.sub_id ? 'Simpan perubahan' : 'Kirim tugas' %>
+                      </button>
+                    </form>
+                  </details>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+  </section>
+</main>
+
+<%- include('../partials/foot') %>

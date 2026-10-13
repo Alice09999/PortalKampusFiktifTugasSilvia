@@ -1,0 +1,40 @@
+<% if (user) { %>
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="/">
+      <span class="logo">KK</span>
+      <span>KampusKu<small>Portal Akademik Fiktif</small></span>
+    </a>
+
+    <button class="nav-toggle" type="button" aria-label="Buka menu" aria-expanded="false">☰</button>
+
+    <nav class="nav-links">
+      <% if (user.role === 'mahasiswa') { %>
+        <a href="/mahasiswa" class="<%= currentPath === '/mahasiswa' ? 'active' : '' %>">Dashboard</a>
+        <a href="/mahasiswa/nilai" class="<%= currentPath.indexOf('/mahasiswa/nilai') === 0 ? 'active' : '' %>">Nilai</a>
+        <a href="/mahasiswa/tugas" class="<%= currentPath.indexOf('/mahasiswa/tugas') === 0 ? 'active' : '' %>">Tugas</a>
+        <a href="/mahasiswa/diskusi" class="<%= currentPath.indexOf('/mahasiswa/diskusi') === 0 ? 'active' : '' %>">Diskusi</a>
+      <% } else if (user.role === 'dosen') { %>
+        <a href="/dosen" class="<%= currentPath === '/dosen' ? 'active' : '' %>">Dashboard</a>
+        <a href="/dosen/penilaian" class="<%= currentPath.indexOf('/dosen/penilaian') === 0 ? 'active' : '' %>">Penilaian</a>
+      <% } else if (user.role === 'admin') { %>
+        <a href="/admin" class="<%= currentPath === '/admin' ? 'active' : '' %>">Dashboard</a>
+        <a href="/admin/akun" class="<%= currentPath.indexOf('/admin/akun') === 0 ? 'active' : '' %>">Pengelolaan Akun</a>
+      <% } %>
+      <a href="/lab" class="<%= currentPath.indexOf('/lab') === 0 ? 'active' : '' %>">Laboratorium</a>
+    </nav>
+
+    <div class="topbar-right">
+      <span class="user-chip">
+        <span class="avatar"><%= user.fullName.split(' ').map(function (s) { return s[0]; }).slice(0, 2).join('').toUpperCase() %></span>
+        <span class="name"><%= user.fullName %></span>
+        <span class="role-tag"><%= roleLabel[user.role] || user.role %></span>
+      </span>
+      <form method="post" action="/logout">
+        <%- csrfField() %>
+        <button class="btn sm secondary" type="submit">Keluar</button>
+      </form>
+    </div>
+  </div>
+</header>
+<% } %>

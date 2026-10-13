@@ -1,0 +1,113 @@
+<%- include('../partials/head') %>
+<%- include('../partials/nav') %>
+
+<main class="container">
+  <div class="page-head">
+    <div>
+      <h1>Nilai Saya</h1>
+      <p>Hanya nilai milik Anda yang ditampilkan.</p>
+    </div>
+    <div class="btn-row">
+      <a class="btn secondary" href="/mahasiswa">Kembali ke Dashboard</a>
+    </div>
+  </div>
+
+  <%- include('../partials/flash') %>
+
+  <div class="grid grid-3" style="margin-bottom:1rem;">
+    <div class="stat">
+      <span class="label">Rata-rata Nilai Akhir</span>
+      <span class="value"><%= rata !== null ? Number(rata).toFixed(1) : '—' %></span>
+      <span class="hint">skala 0–100</span>
+    </div>
+    <div class="stat">
+      <span class="label">Total SKS Dinilai</span>
+      <span class="value"><%= totalSks %></span>
+      <span class="hint">hanya mata kuliah yang sudah dinilai</span>
+    </div>
+    <div class="stat">
+      <span class="label">Mata Kuliah Diambil</span>
+      <span class="value"><%= rows.length %></span>
+      <span class="hint">semester Ganjil 2026/2027</span>
+    </div>
+  </div>
+
+  <section class="card">
+    <div class="card-title">
+      <h2>Nilai Akhir per Mata Kuliah</h2>
+    </div>
+    <% if (rows.length === 0) { %>
+      <div class="empty">Anda belum terdaftar pada mata kuliah mana pun.</div>
+    <% } else { %>
+      <div class="table-wrap">
+        <table class="data">
+          <thead>
+            <tr>
+              <th>Kode</th><th>Mata Kuliah</th><th>SKS</th><th>Dosen Pengampu</th>
+              <th class="num">Nilai</th><th>Huruf</th><th>Diperbarui</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% rows.forEach(function (r) { %>
+              <tr>
+                <td><span class="badge primary"><%= r.code %></span></td>
+                <td><%= r.name %></td>
+                <td class="num"><%= r.credits %></td>
+                <td><%= r.dosen_name %></td>
+                <td class="num">
+                  <% if (r.score === null || r.score === undefined) { %>
+                    <span class="badge neutral">belum dinilai</span>
+                  <% } else { %>
+                    <strong><%= Number(r.score).toFixed(1) %></strong>
+                  <% } %>
+                </td>
+                <td>
+                  <% if (r.grade_letter) { %><span class="badge ok"><%= r.grade_letter %></span>
+                  <% } else { %><span class="badge neutral">—</span><% } %>
+                </td>
+                <td><%= r.updated_at || '—' %></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+  </section>
+
+  <section class="card">
+    <div class="card-title">
+      <h2>Nilai Tugas</h2>
+      <a class="btn sm secondary" href="/mahasiswa/tugas">Unggah tugas</a>
+    </div>
+    <% if (nilaiTugas.length === 0) { %>
+      <div class="empty">Belum ada tugas yang Anda kumpulkan.</div>
+    <% } else { %>
+      <div class="table-wrap">
+        <table class="data">
+          <thead>
+            <tr><th>Mata Kuliah</th><th>Tugas</th><th>Diunggah</th><th class="num">Nilai</th><th>Umpan Balik</th></tr>
+          </thead>
+          <tbody>
+            <% nilaiTugas.forEach(function (t) { %>
+              <tr>
+                <td><span class="badge neutral"><%= t.code %></span></td>
+                <td><%= t.title %></td>
+                <td><%= t.submitted_at || '—' %></td>
+                <td class="num">
+                  <% if (t.score === null || t.score === undefined) { %>
+                    <span class="badge warn">menunggu penilaian</span>
+                  <% } else { %>
+                    <strong><%= Number(t.score).toFixed(1) %></strong>
+                  <% } %>
+                </td>
+                <td><%= t.feedback || '—' %></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+  </section>
+</main>
+
+<%- include('../partials/foot') %>

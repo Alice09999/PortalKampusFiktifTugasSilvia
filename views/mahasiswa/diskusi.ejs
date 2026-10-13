@@ -1,0 +1,72 @@
+<%- include('../partials/head') %>
+<%- include('../partials/nav') %>
+
+<main class="container">
+  <div class="page-head">
+    <div>
+      <h1>Forum Diskusi</h1>
+      <p>Baca dan buka diskusi pada mata kuliah yang Anda ikuti.</p>
+    </div>
+    <div class="btn-row">
+      <a class="btn secondary" href="/mahasiswa">Kembali ke Dashboard</a>
+    </div>
+  </div>
+
+  <%- include('../partials/flash') %>
+
+  <div class="grid grid-2">
+    <section>
+      <% if (rows.length === 0) { %>
+        <div class="card"><div class="empty">Belum ada diskusi. Jadilah yang pertama memulai!</div></div>
+      <% } else { %>
+        <% rows.forEach(function (d) { %>
+          <article class="topic">
+            <div class="meta">
+              <span class="badge neutral"><%= d.code %></span>
+              <%= d.course_name %>
+            </div>
+            <h3><a href="/mahasiswa/diskusi/<%= d.id %>"><%= d.title %></a></h3>
+            <div class="meta">
+              Ditulis oleh <strong><%= d.penulis %></strong>
+              (<%= d.penulis_role %>) · <%= d.created_at %>
+              · <%= d.jml_balasan %> balasan
+            </div>
+            <p style="margin-top:.45rem;color:#334155;"><%= d.body.slice(0, 180) %><%= d.body.length > 180 ? '…' : '' %></p>
+            <a class="btn sm secondary" href="/mahasiswa/diskusi/<%= d.id %>">Buka diskusi</a>
+          </article>
+        <% }) %>
+      <% } %>
+    </section>
+
+    <section>
+      <div class="card">
+        <div class="card-title"><h2>Buat Diskusi Baru</h2></div>
+        <form method="post" action="/mahasiswa/diskusi">
+          <%- csrfField() %>
+          <div class="field">
+            <label for="course_id">Mata kuliah</label>
+            <select id="course_id" name="course_id" required>
+              <option value="">— pilih mata kuliah —</option>
+              <% courses.forEach(function (c) { %>
+                <option value="<%= c.id %>"><%= c.code %> — <%= c.name %></option>
+              <% }) %>
+            </select>
+          </div>
+          <div class="field">
+            <label for="title">Judul topik</label>
+            <input type="text" id="title" name="title" maxlength="160" required
+                   placeholder="mis. Cara mengerjakan soal nomor 3">
+          </div>
+          <div class="field">
+            <label for="body">Isi diskusi</label>
+            <textarea id="body" name="body" maxlength="4000" required
+                      placeholder="Tuliskan pertanyaan atau penjelasan Anda..."></textarea>
+          </div>
+          <button class="btn" type="submit">Publikasikan</button>
+        </form>
+      </div>
+    </section>
+  </div>
+</main>
+
+<%- include('../partials/foot') %>

@@ -1,0 +1,83 @@
+<%- include('../partials/head') %>
+<%- include('../partials/nav') %>
+
+<main class="container">
+  <div class="page-head">
+    <div>
+      <h1>Laboratorium Kerentanan</h1>
+      <p>Uji coba terisolasi untuk tugas audit — hanya untuk lingkungan lokal.</p>
+    </div>
+    <div class="btn-row">
+      <a class="btn secondary" href="/login">Ke Portal Utama</a>
+    </div>
+  </div>
+
+  <div class="lab-banner">
+    <strong>⚠️ Peringatan keselamatan.</strong>
+    Kedua laboratorium di bawah mengandung kerentanan yang <strong>dibuat sengaja</strong>
+    untuk pembelajaran. Gunakan hanya pada komputer/lingkungan milik sendiri dengan data sintetis.
+    Jangan menjalankannya terhadap situs orang lain. Pada deployment publik, setel
+    <code class="kbd">LAB_ENABLED=false</code> agar jalur ini tertutup.
+  </div>
+
+  <div class="grid grid-2">
+    <section class="card">
+      <div class="card-title">
+        <h2>1 · Laboratorium SQL Injection</h2>
+        <span class="badge err">rentan</span>
+      </div>
+      <p class="card-sub">
+        Formulir pencarian pengguna dan login demo pada basis data laboratorium
+        menggabungkan input pengguna langsung ke dalam string SQL, sehingga
+        perintah tambahan dapat “menyusup” ke dalam kueri.
+      </p>
+      <ul style="font-size:.9rem;">
+        <li>Versi rentan: konkatensi string (<code class="kbd">' + input + '</code>)</li>
+        <li>Versi perbaikan: kueri berparameter (<code class="kbd">WHERE kolom = ?</code>)</li>
+        <li>Basis data terpisah: <code class="kbd">data/lab.db</code></li>
+      </ul>
+      <a class="btn" href="/lab/sqli">Buka Laboratorium SQL Injection</a>
+    </section>
+
+    <section class="card">
+      <div class="card-title">
+        <h2>2 · Percobaan Sandi Tanpa Pembatasan</h2>
+        <span class="badge err">rentan</span>
+      </div>
+      <p class="card-sub">
+        Halaman login laboratorium <strong>tidak menerapkan rate limiting</strong>,
+        jeda, maupun penguncian akun. Setiap percobaan dicatat agar terlihat bahwa
+        sistem menerima puluhan percobaan beruntun tanpa memblokir.
+      </p>
+      <ul style="font-size:.9rem;">
+        <li>Akun sasaran laboratorium: <code class="kbd">lab_mhs01</code></li>
+        <li>Termasuk tombol simulasi percobaan beruntun</li>
+        <li>Portal utama <strong>memakai</strong> pembatas percobaan login</li>
+      </ul>
+      <a class="btn" href="/lab/login">Buka Laboratorium Login</a>
+    </section>
+  </div>
+
+  <section class="card">
+    <div class="card-title"><h2>Prinsip yang Diterapkan</h2></div>
+    <div class="grid grid-3">
+      <div class="stat">
+        <span class="label">Terpisah</span>
+        <span class="value" style="font-size:1.1rem;">Jalur &amp; DB berbeda</span>
+        <span class="hint">Laboratorium tidak menyentuh data portal utama.</span>
+      </div>
+      <div class="stat">
+        <span class="label">Sintetis</span>
+        <span class="value" style="font-size:1.1rem;">Data fiktif saja</span>
+        <span class="hint">Tidak ada akun, kata sandi, atau data sungguhan.</span>
+      </div>
+      <div class="stat">
+        <span class="label">Dapat Dimatikan</span>
+        <span class="value" style="font-size:1.1rem;">LAB_ENABLED=false</span>
+        <span class="hint">Jalur /lab otomatis membalas 404 saat nonaktif.</span>
+      </div>
+    </div>
+  </section>
+</main>
+
+<%- include('../partials/foot') %>

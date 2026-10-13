@@ -1,0 +1,35 @@
+# --- Rahasia & konfigurasi lokal (JANGAN PERNAH di-commit) ---
+.env
+.env.*
+!.env.example
+
+# --- Dependensi & build ---
+node_modules/
+npm-debug.log*
+yarn-error.log*
+package-lock.json.bak
+
+# --- Basis data & file unggahan pengguna ---
+data/*.db
+data/*.db-journal
+data/*.db-wal
+data/*.db-shm
+uploads/*
+!uploads/.gitkeep
+
+# --- Log & file sementara ---
+*.log
+tmp/
+temp/
+.cache/
+
+# --- Editor / OS ---
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# --- Lingkungan deployment ---
+.vercel
+.netlify
