@@ -9,18 +9,21 @@
     "dev": "node --watch server.js",
     "init:db": "node scripts/init-db.js",
     "reset:db": "node scripts/init-db.js --fresh",
-    "smoke": "node scripts/smoke-test.js"
+    "smoke": "node scripts/smoke-test.js",
+    "verify:netlify": "node scripts/verify-netlify.js"
   },
   "engines": {
-    "node": ">=20.11"
+    "node": ">=22.5"
   },
   "license": "MIT",
   "dependencies": {
+    "@netlify/blobs": "^11.1.4",
     "bcryptjs": "^3.0.2",
     "dotenv": "^16.4.7",
     "ejs": "^3.1.10",
     "express": "^4.21.2",
     "express-session": "^1.18.1",
-    "multer": "^2.0.2"
+    "multer": "^2.0.2",
+    "serverless-http": "^4.0.0"
   }
 }

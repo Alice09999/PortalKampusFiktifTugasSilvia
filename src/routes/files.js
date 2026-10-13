@@ -13,6 +13,7 @@ const path = require('path');
 const fs = require('fs');
 const config = require('../config');
 const { get } = require('../db');
+const storage = require('../storage');
 const { requireLogin } = require('../middleware/auth');
 
 const router = express.Router();
@@ -67,24 +68,54 @@ router.get('/:id', (req, res) => {
     });
   }
 
+  const safeName = String(sub.file_name || 'berkas.txt').replace(/[^\w.\-() ]+/g, '_');
   const fullPath = path.join(config.UPLOAD_DIR, path.basename(sub.file_path));
-  if (!fs.existsSync(fullPath)) {
-    return res.status(404).render('error', {
-      title: 'Berkas Hilang',
-      status: 404,
-      message: 'File fisik tidak ditemukan di server.'
+
+  // (1) Berkas di disk lokal — termasuk berkas seed hasil `npm run init:db`.
+  if (fs.existsSync(fullPath)) {
+    return res.download(fullPath, safeName, (err) => {
+      if (err && !res.headersSent) {
+        res.status(500).render('error', {
+          title: 'Kesalahan',
+          status: 500,
+          message: 'Gagal mengirim berkas.'
+        });
+      }
     });
   }
 
-  const safeName = String(sub.file_name || 'berkas.txt').replace(/[^\w.\-() ]+/g, '_');
-  res.download(fullPath, safeName, (err) => {
-    if (err && !res.headersSent) {
-      res.status(500).render('error', {
-        title: 'Kesalahan',
-        status: 500,
-        message: 'Gagal mengirim berkas.'
+  // (2) Penyimpanan persisten Netlify Blobs (bila backend = blobs).
+  if (storage.backend() === 'blobs') {
+    storage
+      .sendFromBlobs(res, sub.file_path, safeName)
+      .then((ada) => {
+        if (ada) return;
+        if (!res.headersSent) {
+          res.status(404).render('error', {
+            title: 'Berkas Hilang',
+            status: 404,
+            message: 'File fisik tidak ditemukan di server.'
+          });
+        }
+      })
+      .catch((e) => {
+        console.error('[files] gagal mengambil berkas dari Blobs:', e.message || e);
+        if (!res.headersSent) {
+          res.status(500).render('error', {
+            title: 'Kesalahan',
+            status: 500,
+            message: 'Gagal mengambil berkas dari penyimpanan.'
+          });
+        }
       });
-    }
+    return;
+  }
+
+  // (3) Tidak ada di mana pun.
+  return res.status(404).render('error', {
+    title: 'Berkas Hilang',
+    status: 404,
+    message: 'File fisik tidak ditemukan di server.'
   });
 });
 

@@ -1,0 +1,50 @@
+# Konfigurasi build & deploy Netlify — KampusKu
+#
+# PENTING — environment variable runtime:
+#   netlify.toml TIDAK bisa dipakai untuk menyediakan environment variable ke
+#   serverless functions (dokumentasi Netlify: "environment variables declared in
+#   a Netlify configuration file are not available to serverless functions").
+#   Karena itu netlify.toml ini TIDAK memuat nilai rahasia apa pun, dan
+#   netlify/functions/app.js menyetel semua nilai non-rahasia secara mandiri.
+#   Satu-satunya yang WAJIB diisi di Netlify UI (Site configuration ->
+#   Environment variables):
+#       SESSION_SECRET   = <string acak >=16 karakter, jangan pakai nilai contoh>
+#   Nilai rahasia tidak pernah dicetak aplikasi dan tidak pernah ditulis di sini.
+
+[build]
+  # init:db membuat database sintetis + berkas seed unggahan yang nantinya
+  # ikut terbundel (lihat included_files di bawah).
+  command = "npm ci && npm run init:db"
+  # publish = folder aset statis. JANGAN pernah repo root, agar source code,
+  # .env, dan file database tidak tersaji sebagai file statis.
+  publish = "public"
+
+[build.environment]
+  # node:sqlite (dipakai src/db.js) butuh Node >= 22.5. Netlify default 24.
+  # Versi build ini juga yang dipakai runtime functions.
+  NODE_VERSION = "24"
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+  # Pola resmi dokumentasi Netlify untuk Express.
+  external_node_modules = ["express"]
+  # File yang dibaca saat RUNTIME (bukan aset statis):
+  #   views/**          -> template EJS (app.set('views', <root>/views))
+  #   public/**         -> fallback aset statis dari dalam fungsi
+  #   data/*            -> database sintetis hasil npm run init:db
+  #   uploads/seed_*.txt-> berkas seed pengumpulan tugas
+  # .env TIDAK disertakan (dan tetap diblokir .gitignore).
+  included_files = [
+    "views/**",
+    "public/**",
+    "data/*",
+    "uploads/seed_*.txt"
+  ]
+
+# Rewrite menyeluruh ke fungsi Express. BERSIFAT non-forced, sehingga berkas
+# yang benar-benar ada di folder publish tetap dilayani CDN Netlify.
+[[redirects]]
+  from = "/*"
+  to = "/.netlify/functions/app"
+  status = 200

@@ -2,8 +2,6 @@
 
 const express = require('express');
 const path = require('path');
-const fs = require('fs');
-const crypto = require('crypto');
 const multer = require('multer');
 const config = require('../config');
 const { all, get, run } = require('../db');
@@ -129,16 +127,11 @@ router.get('/tugas', (req, res) => {
 });
 
 // Validasi + penyimpanan unggahan.
-fs.mkdirSync(config.UPLOAD_DIR, { recursive: true });
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, config.UPLOAD_DIR),
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase().slice(1);
-    cb(null, `sub_${Date.now()}_${crypto.randomBytes(6).toString('hex')}.${ext}`);
-  }
-});
+// Validasi (ekstensi, MIME, ukuran, jumlah) TIDAK diubah — hanya storage yang
+// dipindahkan ke src/storage.js agar bisa memakai disk (lokal) atau Blobs (Netlify).
+const storage = require('../storage');
 const upload = multer({
-  storage,
+  storage: storage.multerStorage(),
   limits: { fileSize: config.MAX_UPLOAD_BYTES, files: 1 },
   fileFilter: (req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase().slice(1);
@@ -160,61 +153,76 @@ router.post('/tugas/:id/submit', (req, res) => {
       flash(req, 'error', `Unggahan ditolak: ${err.message}`);
       return res.redirect('/mahasiswa/tugas');
     }
-    const sid = req.session.user.id;
-    const assignmentId = parseInt(req.params.id, 10);
-    if (!Number.isInteger(assignmentId)) {
-      flash(req, 'error', 'ID tugas tidak valid.');
-      return res.redirect('/mahasiswa/tugas');
-    }
-
-    const assignment = get('SELECT * FROM assignments WHERE id = ?', [assignmentId]);
-    if (!assignment) {
-      flash(req, 'error', 'Tugas tidak ditemukan.');
-      return res.redirect('/mahasiswa/tugas');
-    }
-    if (!isEnrolled(sid, assignment.course_id)) {
-      flash(req, 'error', 'Anda tidak terdaftar pada mata kuliah tersebut.');
-      return res.redirect('/mahasiswa/tugas');
-    }
-
-    const note = String(req.body.catatan || '').slice(0, 500);
-    const f = req.file;
-    if (!f) {
-      flash(req, 'error', 'Berkas unggahan wajib dipilih.');
-      return res.redirect('/mahasiswa/tugas');
-    }
-
-    const existing = get('SELECT * FROM submissions WHERE assignment_id = ? AND student_id = ?', [
-      assignmentId,
-      sid
-    ]);
-
-    if (existing) {
-      // Ganti berkas: hapus berkas lama terlebih dahulu.
-      if (existing.file_path) {
-        const old = path.join(config.UPLOAD_DIR, path.basename(existing.file_path));
-        try {
-          if (fs.existsSync(old)) fs.rmSync(old);
-        } catch (_) {}
+    // Penyimpanan bisa bersifat asinkron (Netlify Blobs) -> tangani errornya
+    // agar tidak menjadi unhandled rejection.
+    simpanPengumpulan(req, res).catch((e) => {
+      console.error('[mahasiswa] gagal menyimpan pengumpulan:', e.message || e);
+      if (!res.headersSent) {
+        flash(req, 'error', 'Berkas gagal disimpan. Silakan coba lagi.');
+        res.redirect('/mahasiswa/tugas');
       }
-      run(
-        `UPDATE submissions
-            SET file_path=?, file_name=?, file_size=?, note=?, submitted_at=datetime('now','localtime')
-          WHERE id=?`,
-        [f.filename, f.originalname, f.size, note, existing.id]
-      );
-    } else {
-      run(
-        `INSERT INTO submissions (assignment_id, student_id, file_path, file_name, file_size, note, submitted_at)
-         VALUES (?,?,?,?,?,?,datetime('now','localtime'))`,
-        [assignmentId, sid, f.filename, f.originalname, f.size, note]
-      );
-    }
-
-    flash(req, 'success', 'Tugas berhasil diunggah.');
-    res.redirect('/mahasiswa/tugas');
+    });
   });
 });
+
+async function simpanPengumpulan(req, res) {
+  const sid = req.session.user.id;
+  const assignmentId = parseInt(req.params.id, 10);
+  if (!Number.isInteger(assignmentId)) {
+    flash(req, 'error', 'ID tugas tidak valid.');
+    return res.redirect('/mahasiswa/tugas');
+  }
+
+  const assignment = get('SELECT * FROM assignments WHERE id = ?', [assignmentId]);
+  if (!assignment) {
+    flash(req, 'error', 'Tugas tidak ditemukan.');
+    return res.redirect('/mahasiswa/tugas');
+  }
+  if (!isEnrolled(sid, assignment.course_id)) {
+    flash(req, 'error', 'Anda tidak terdaftar pada mata kuliah tersebut.');
+    return res.redirect('/mahasiswa/tugas');
+  }
+
+  const note = String(req.body.catatan || '').slice(0, 500);
+  const f = req.file;
+  if (!f) {
+    flash(req, 'error', 'Berkas unggahan wajib dipilih.');
+    return res.redirect('/mahasiswa/tugas');
+  }
+
+  const existing = get('SELECT * FROM submissions WHERE assignment_id = ? AND student_id = ?', [
+    assignmentId,
+    sid
+  ]);
+
+  // Berkas disimpan KE PENYIMPANAN lebih dahulu; bila gagal, baris database
+  // tidak pernah dibuat (tidak ada fitur yang "tampak berhasil").
+  const saved = await storage.persist(f);
+
+  if (existing) {
+    // Ganti berkas: hapus berkas lama terlebih dahulu.
+    if (existing.file_path) {
+      try {
+        await storage.remove(existing.file_path);
+      } catch (_) {}
+    }
+    run(
+      `UPDATE submissions
+          SET file_path=?, file_name=?, file_size=?, note=?, submitted_at=datetime('now','localtime')
+        WHERE id=?`,
+      [saved.name, f.originalname, f.size, note, existing.id]
+    );
+  } else {
+    run(
+      `INSERT INTO submissions (assignment_id, student_id, file_path, file_name, file_size, note, submitted_at)
+       VALUES (?,?,?,?,?,?,datetime('now','localtime'))`,
+      [assignmentId, sid, saved.name, f.originalname, f.size, note]
+    );
+  }
+
+  flash(req, 'success', 'Tugas berhasil diunggah.');
+  res.redirect('/mahasiswa/tugas');
+}
 
 // -------------------------------------------------------------- diskusi
 router.get('/diskusi', (req, res) => {

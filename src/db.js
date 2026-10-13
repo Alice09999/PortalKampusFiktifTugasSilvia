@@ -138,6 +138,61 @@ function initSchema() {
 
 initSchema();
 
+// ============================================================ MIRROR (opsional)
+// Hanya aktif bila DB_MIRROR=true (diatur oleh adapter Netlify; default lokal
+// = false sehingga perilaku lokal TIDAK berubah sama sekali).
+//
+// Alur di Netlify:
+//   1. Build      : `npm run init:db` membuat data/kampuskue.db (sintetis).
+//   2. Bundle     : file itu ikut terbundel lewat `included_files` (read-only).
+//   3. Cold start : adapter menyalinnya ke /tmp (satu-satunya direktori writable).
+//   4. Setiap kali ada TULISAN, file /tmp di-mirror ke Netlify Blobs supaya
+//      data tidak hilang saat cold start berikutnya.
+//
+// BATAS JUJUR: /tmp bukan penyimpanan persisten (hilang saat container mati),
+// dan mirror ini memakai semantik last-write-wins — bila dua instance
+// menulis bersamaan, data salah satu bisa tertimpa. Cukup untuk demo trafik
+// rendah, BUKAN untuk data produksi.
+const mirrorAktif = config.DB_MIRROR === true;
+const NAMA_TOKO = 'kampuskue-portal';
+const KUNCI_DB = 'db/kampuskue.db';
+let kotor = false;
+let tokoMirror = null;
+
+function toko() {
+  if (tokoMirror) return tokoMirror;
+  const { getStore } = require('@netlify/blobs');
+  tokoMirror = getStore({ name: NAMA_TOKO, consistency: 'strong' });
+  return tokoMirror;
+}
+
+/** Tandai bahwa database berubah sejak mirror terakhir. */
+function tandaiKotor() {
+  if (mirrorAktif) kotor = true;
+}
+
+function adaPerubahan() {
+  return kotor;
+}
+
+/** Flush perubahan ke Blobs. Best-effort: gagal = data lokal tetap dipakai. */
+async function flushMirror() {
+  if (!mirrorAktif || !kotor) return false;
+  kotor = false;
+  try {
+    db.exec('PRAGMA wal_checkpoint(TRUNCATE);');
+    const isi = await fs.promises.readFile(config.DB_PATH);
+    await toko().set(KUNCI_DB, isi);
+    return true;
+  } catch (e) {
+    kotor = true; // coba lagi pada permintaan berikutnya
+    console.error('[db] mirror database ke Blobs gagal:', e.message || e);
+    return false;
+  }
+}
+
+// ------------------------------------------------------------- pembungkus SQL
+
 function all(sql, params = []) {
   return db.prepare(sql).all(...params);
 }
@@ -145,13 +200,16 @@ function get(sql, params = []) {
   return db.prepare(sql).get(...params);
 }
 function run(sql, params = []) {
-  return db.prepare(sql).run(...params);
+  const r = db.prepare(sql).run(...params);
+  tandaiKotor();
+  return r;
 }
 function tx(fn) {
   db.exec('BEGIN');
   try {
     const r = fn();
     db.exec('COMMIT');
+    tandaiKotor();
     return r;
   } catch (e) {
     db.exec('ROLLBACK');
@@ -171,4 +229,15 @@ function gradeLetter(score) {
   return 'E';
 }
 
-module.exports = { db, labDb, all, get, run, tx, initSchema, gradeLetter };
+module.exports = {
+  db,
+  labDb,
+  all,
+  get,
+  run,
+  tx,
+  initSchema,
+  gradeLetter,
+  flushMirror,
+  adaPerubahan
+};

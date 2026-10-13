@@ -83,18 +83,25 @@ Semua tombol dan formulir terhubung ke backend; tidak ada tombol dekoratif.
 D:\WEB PORTAL KAMPUS FIKTIF\
 ├── server.js                  # Titik masuk server Express + rute utama
 ├── package.json               # Dependensi & skrip npm
+├── netlify.toml               # Konfigurasi build & redirect Netlify (tanpa rahasia)
 ├── .env.example               # Templat variabel lingkungan (aman untuk Git)
 ├── .env                       # Konfigurasi lokal (TIDAK di-commit)
 ├── .gitignore
 ├── README.md
+├── netlify/
+│   └── functions/
+│       └── app.js             # Adapter Express -> Netlify Functions (+ hydrate /tmp)
 ├── scripts/
 │   ├── init-db.js             # Inisialisasi + seed data sintetis (--fresh untuk ulang)
-│   └── smoke-test.js          # Uji otomatis menyeluruh (65 pemeriksaan)
+│   ├── smoke-test.js          # Uji otomatis menyeluruh (80 pemeriksaan)
+│   └── verify-netlify.js      # Uji jalur adapter Netlify & penegakan rahasia (25 pemeriksaan)
 ├── src/
 │   ├── config.js              # Pembacaan .env & konfigurasi
-│   ├── db.js                  # Koneksi SQLite + skema tabel + helper query
+│   ├── db.js                  # Koneksi SQLite + skema tabel + helper query + mirror opsional
 │   ├── queries.js             # Helper bersama (keanggotaan kelas, kepemilikan kelas)
 │   ├── loginGuard.js          # Pembatas percobaan login PORTAL UTAMA
+│   ├── sessionStore.js        # Session store: memori (lokal) atau Blobs (Netlify)
+│   ├── storage.js             # Backend unggahan: disk (lokal) atau Blobs (Netlify)
 │   ├── middleware/
 │   │   └── auth.js            # Flash, CSRF, requireLogin, requireRole
 │   └── routes/
@@ -334,6 +341,22 @@ portal utama, seluruh skenario SQL Injection, brute force tanpa pembatasan, caku
 seluruh halaman wajib (13 rute harus 200 + halaman 404), serta penonaktifan lab
 (`LAB_ENABLED=false` → 404).
 
+> **Agar database demo Anda tidak tersentuh**, arahkan smoke test ke instance
+> terisolasi dengan env var `DB_PATH`, `LAB_DB_PATH`, `UPLOAD_DIR`, `PORT`, dan
+> `BASE_URL` (isi folder sementara + port lain, jalankan `node scripts/init-db.js`
+> dengan env yang sama). Inilah cara pengujian resmi yang dipakai saat pengembangan.
+
+Uji jalur deployment Netlify (tanpa deploy, tanpa jaringan):
+
+```powershell
+npm run verify:netlify   # = node scripts/verify-netlify.js (25 pemeriksaan)
+```
+
+Bagian **N** memanggil `netlify/functions/app.js` lewat `serverless-http` dengan
+event API Gateway tiruan; bagian **O** memastikan mode production tanpa
+`SESSION_SECRET` yang sah **ditolak**; bagian **P** memastikan mirror database
+gagal dengan anggun bila Blobs tidak tersedia.
+
 ### 9.2 Uji manual singkat
 
 | # | Langkah | Hasil yang diharapkan |
@@ -394,6 +417,20 @@ Salin `.env.example` menjadi `.env`:
 | `MAX_UPLOAD_BYTES` | `5242880` (5 MB) | Batas ukuran unggahan tugas |
 | `LOGIN_MAX_FAILS` | `8` | Kegagalan login sebelum ditahan |
 | `LOGIN_LOCK_SECONDS` | `300` | Durasi penahanan login |
+| `SESSION_BACKEND` | `memory` | `memory` (lokal) atau `blobs` (Netlify Blobs) |
+| `STORAGE_BACKEND` | `disk` | `disk` (lokal) atau `blobs` (Netlify Blobs) |
+| `DB_MIRROR` | `false` | Mirror database SQLite ke Blobs (hanya Netlify) |
+| `APP_ROOT` | otomatis | Root bundle fungsi Netlify; **tidak perlu** diisi manual |
+| `TMP_DIR` | `/tmp` | Direktori writable fungsi Netlify; **tidak perlu** diisi manual |
+
+> `SESSION_BACKEND`/`STORAGE_BACKEND`/`DB_MIRROR`/`APP_ROOT`/`TMP_DIR` **disetel
+> otomatis** oleh `netlify/functions/app.js` saat deploy Netlify (lihat bagian 13 — poin D).
+> Nilai `memory`/`disk`/`false` di atas adalah default untuk pemakaian lokal,
+> sehingga perilaku lokal tidak berubah sama sekali.
+>
+> Pada mode production, `SESSION_SECRET` **wajib** berupa string acak ≥16 karakter
+> yang bukan nilai contoh. Bila tidak, `node server.js` dan adapter Netlify akan
+> **menolak melayani permintaan** (tanpa pernah mencetak nilai rahasia).
 
 `.env` sudah masuk `.gitignore` — **jangan pernah** menyertakannya ke repository.
 Berkas yang tidak boleh di-commit: `.env`, `data/*.db`, `uploads/*`, `node_modules/`.
@@ -402,8 +439,11 @@ Berkas yang tidak boleh di-commit: `.env`, `data/*.db`, `uploads/*`, `node_modul
 
 ## 12. Mengunggah ke GitHub
 
-> Catatan: langkah di bawah adalah **panduan**. Repositori belum dibuat/diunggah
-> oleh asisten ini — lakukan sendiri agar Anda memegang kendali akun GitHub.
+> **Status saat ini:** repository GitHub sudah ada di
+> `https://github.com/Alice09999/PortalKampusFiktifTugasSilvia` (branch `main`,
+> dua commit awal). Perubahan untuk dukungan Netlify **belum di-commit maupun
+> di-push** — tinjau dulu `git diff`/`git status`, lalu commit dan push sendiri
+> (jangan pernah `git push --force`).
 
 ```powershell
 # 1. Dari folder proyek, inisialisasi git
@@ -463,6 +503,66 @@ NODE_ENV=production npm start   # atau gunakan pm2: pm2 start server.js --name k
   agar cookie `secure` bekerja di balik HTTPS.
 - Aktifkan HTTPS (Let’s Encrypt) — cookie ditandai `secure` pada mode produksi.
 
+**D. Netlify (paket gratis) — status: SIAP DIIMPLEMENTASI, BELUM DI-DEPLOY**
+
+Berkas khusus: `netlify.toml` + `netlify/functions/app.js`.
+
+**Cara kerjanya**
+
+| Tahap | Apa yang terjadi |
+|---|---|
+| Build | `npm ci && npm run init:db` membuat `data/kampuskue.db`, `data/lab.db`, dan `uploads/seed_*.txt` (sintetis) di kontainer build. |
+| Bundle | `included_files` di `netlify.toml` ikut membawa `views/**`, `public/**`, `data/*`, `uploads/seed_*.txt`. Berkas ini **read-only**. |
+| Cold start | Adapter menyalin database + berkas seed ke **`/tmp`** (satu-satunya direktori writable) dan membuka koneksi di sana. |
+| Request | Adapter membungkus app Express dengan `serverless-http` (pola resmi dokumentasi Netlify untuk Express). |
+
+**Variable environment yang WAJIB diisi di Netlify UI**
+(*Site configuration → Environment variables*). `netlify.toml` **tidak** bisa
+dipakai untuk ini (dokumentasi Netlify: env var di file konfigurasi tidak tersedia
+bagi serverless functions), dan file itu memang ikut ter-commit.
+
+- `SESSION_SECRET` — string acak ≥16 karakter (**bukan** nilai contoh).
+  Tanpa ini, fungsi akan membalas 500 dan menolak melayani.
+
+Semua env var non-rahasia (`NODE_ENV`, `LAB_ENABLED`, `DB_PATH`, `LAB_DB_PATH`,
+`UPLOAD_DIR`, `APP_ROOT`, `SESSION_BACKEND`, `STORAGE_BACKEND`, `DB_MIRROR`,
+`MAX_UPLOAD_BYTES`) **disetel otomatis** oleh adapter, dengan nilai aman bawaan.
+
+**Sesi, unggahan, dan database — strategi yang dipilih**
+
+- **Sesi login** → **Netlify Blobs** (`SESSION_BACKEND=blobs`). MemoryStore hanya
+  hidup di satu proses; di Netlify ada banyak instance + cold start sehingga login
+  akan "hilang" secara acak. Blobs tersedia di paket gratis.
+- **Unggahan & unduhan tugas** → **Netlify Blobs** (`STORAGE_BACKEND=blobs`).
+  Bila disimpan ke `/tmp`, berkas hilang saat cold start sehingga fitur hanya
+  *tampak* berhasil. Blobs dipakai agar unggahan benar-benar persisten.
+- **Database SQLite** → `/tmp`. **Ini BUKAN penyimpanan persisten**: `/tmp` hilang
+  saat container mati, dan setiap instance punya salinannya sendiri. Untuk demo
+  trafik rendah, tersedia opsi `DB_MIRROR=true` yang menyalin file database ke
+  Blobs setiap kali ada tulisan. Ini **bukan database bersama** — memakai semantik
+  *last-write-wins*, jadi bila dua instance menulis bersamaan, data salah satu
+  bisa tertimpa.
+
+**Batas yang harus diketahui**
+
+- Payload fungsi yang di-buffer Netlify maksimal 6 MB → unggahan dibatasi 4 MB
+  di Netlify (`MAX_UPLOAD_BYTES=4194304`).
+- Laboratorium **dipaksa nonaktif** oleh adapter (`LAB_ENABLED=false` apa pun isi
+  env var lain). Kode lab tetap ada di `src/routes/lab.js` — tidak dihapus.
+- Data pengguna (nilai, pengumpulan, diskusi, akun baru) bisa hilang pada cold
+  start bila `DB_MIRROR` dimatikan.
+
+**Verifikasi**
+
+```powershell
+# lokal (tanpa deploy, tanpa jaringan) — 25 pemeriksaan:
+npm run verify:netlify
+
+# setelah benar-benar deploy, cek dari luar:
+#   /lab, /lab/sqli, /lab/login -> 404 ; /login -> 200 ; /css/style.css -> 200
+#   login ketiga peran, unggah + unduh tugas
+```
+
 **Setelah deploy, wajib:** `LAB_ENABLED=false` (atau biarkan kosong — otomatis mati
 di produksi) dan ganti `SESSION_SECRET`.
 
@@ -470,13 +570,16 @@ di produksi) dan ganti `SESSION_SECRET`.
 
 ## 14. Menutup Laboratorium pada Deployment Publik
 
-Tiga cara (boleh digabung):
+Empat cara (boleh digabung):
 
 1. **Env var** — setel `LAB_ENABLED=false`. Semua rute `/lab/*` akan membalas **404**.
 2. **Otomatis di produksi** — jika `LAB_ENABLED` tidak diisi dan
    `NODE_ENV=production`, laboratorium **nonaktif secara bawaan** (lihat `src/config.js`).
 3. **Pembungkus tambahan** — bila tetap perlu diakses, lindungi dengan autentikasi
    tingkat proxy (nginx `auth_basic`) dan IP allowlist.
+4. **Netlify** — `netlify/functions/app.js` **memaksa** `LAB_ENABLED=false` sebelum
+   aplikasi dimuat, sehingga laboratorium mustahil aktif di deployment publik
+   tersebut tanpa mengubah kode adapter.
 
 Cara memverikasinya:
 
@@ -502,10 +605,27 @@ penyimpanan nilai dosen (positif & negatif), pengelolaan akun admin, pembatasan
 login portal utama, seluruh skenario kedua laboratorium, render semua halaman wajib,
 serta penonaktifan lab.
 
-**Yang tidak dikerjakan (di luar cakupan):**
+Selain itu, **25 pemeriksaan** pada `scripts/verify-netlify.js`
+(`npm run verify:netlify`) — dijalankan **lokal tanpa deploy dan tanpa jaringan**:
 
-- **Belum** ada repository GitHub yang dibuat dan **belum** ada deployment —
-  keduanya memerlukan akun Anda; panduannya ada di bagian 12 dan 13.
+- jalur `netlify/functions/app.js` lewat `serverless-http` (event API Gateway
+  tiruan): guard `app.listen`, hydrate database + unggahan ke direktori writable,
+  resolusi `views/` dan `public/`, sesi + CSRF tetap bekerja, lab dipaksa 404,
+  dan database lokal proyek tidak tersentuh;
+- penegakan `SESSION_SECRET` pada mode production (proses terpisah);
+- mirror database (`DB_MIRROR=true`) saat Blobs tidak tersedia: flush gagal dengan
+  anggun (tercatat di log), aplikasi tetap termuat, dan `flushMirror` tidak pernah
+  mengaku berhasil.
+
+**Yang BELUM diuji / belum dikerjakan:**
+
+- **Belum ada deployment Netlify sama sekali.** Pengujian di atas hanya
+  memvalidasi jalur kode secara lokal; kebenaran runtime sungguhan (artefak
+  build, `included_files`, Blobs, dan Node runtime) baru bisa dipastikan setelah
+  deploy. Jalur **Netlify Blobs** (`SESSION_BACKEND=blobs`, `STORAGE_BACKEND=blobs`,
+  `DB_MIRROR=true`) ditulis mengikuti dokumentasi resmi tetapi **belum pernah
+  dijalankan** — verifikasi setelah deploy wajib mencakup login, unggah, unduh,
+  dan pemeriksaan `/lab*` (lihat bagian 13 — poin D).
 - Pengujian beban (*load testing*), audit kode oleh pihak ketiga, dan
   pengujian lintas-peramban otomatis tidak dilakukan.
 - Uji visual dilakukan lewat pemeriksaan HTML tanggapan; tidak ada browser
